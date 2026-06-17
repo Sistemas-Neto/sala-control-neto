@@ -8,7 +8,7 @@ export const msalConfig = {
   auth: {
     clientId: "c889b7fa-d0a4-4975-ae68-ed2eb9803445",
     authority: "https://login.microsoftonline.com/e9379df0-6577-491c-ab83-65b8b438c942",
-    redirectUri: window.location.origin,
+    redirectUri: "https://sistemas-neto.github.io/sala-control-neto",
   },
   cache: {
     cacheLocation: "sessionStorage",
