@@ -31,7 +31,6 @@ export default function Dashboard() {
 
   const initials = (name) => name ? name.split(" ").map(n => n[0]).join("").substring(0,2).toUpperCase() : "UN";
 
-  // Calcular ocupación simulada basada en eventos
   const getOcupacion = (roomEmail) => {
     const evs = events[roomEmail] || [];
     return Math.min(Math.round((evs.length / 8) * 100), 100);
@@ -123,13 +122,13 @@ export default function Dashboard() {
 
               {!loading && !error && (
                 <div style={s.bodyGrid}>
-                  {/* Calendario */}
                   <div>
                     <RoomCalendar rooms={rooms} events={events} onRefresh={refresh}/>
                   </div>
 
                   {/* Panel derecho */}
                   <div style={s.rightCol}>
+
                     {/* Estado de salas */}
                     <div style={s.mini}>
                       <div style={s.miniTitle}>🏢 Estado de salas</div>
@@ -141,8 +140,8 @@ export default function Dashboard() {
                           </span>
                         </div>
                       ))}
-                      <div style={{...s.roomRow, borderTop:"0.5px solid #eee", marginTop:4, paddingTop:6}}>
-                        <span style={{...s.rrName, fontSize:10, color:"#534AB7"}}>🔗 Sala Magna</span>
+                      <div style={{...s.roomRow, borderTop:"0.5px solid #eee", marginTop:6, paddingTop:8}}>
+                        <span style={{...s.rrName, color:"#534AB7"}}>🔗 Sala Magna</span>
                         <span style={{...s.badge, ...s.bPurple}}>Disponible</span>
                       </div>
                     </div>
@@ -154,12 +153,14 @@ export default function Dashboard() {
                         const pct = getOcupacion(r.emailAddress);
                         const color = pct > 75 ? "#E24B4A" : pct > 40 ? "#BA7517" : "#1D9E75";
                         return (
-                          <div key={r.id} style={{marginBottom:7}}>
-                            <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:2}}>
-                              <span style={{color:"#888"}}>{r.displayName}</span>
-                              <span style={{fontWeight:500,color:"#222"}}>{pct}%</span>
+                          <div key={r.id} style={{marginBottom:10}}>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
+                              <span style={{color:"#555"}}>{r.displayName}</span>
+                              <span style={{fontWeight:600,color:"#222"}}>{pct}%</span>
                             </div>
-                            <div style={s.barT}><div style={{...s.barF, width:`${pct}%`, background:color}}/></div>
+                            <div style={s.barT}>
+                              <div style={{...s.barF, width:`${pct}%`, background:color}}/>
+                            </div>
                           </div>
                         );
                       })}
@@ -169,7 +170,7 @@ export default function Dashboard() {
                     <div style={s.mini}>
                       <div style={s.miniTitle}>🕐 Próximas reservas</div>
                       {getNextEvents().length === 0 ? (
-                        <div style={{fontSize:11,color:"#aaa",textAlign:"center",padding:"8px 0"}}>Sin reservas próximas</div>
+                        <div style={{fontSize:12,color:"#aaa",textAlign:"center",padding:"10px 0"}}>Sin reservas próximas</div>
                       ) : getNextEvents().map((ev, i) => (
                         <div key={i} style={s.nr}>
                           <div style={s.nrT}>{ev.subject || "(Sin asunto)"}</div>
@@ -177,6 +178,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+
                   </div>
                 </div>
               )}
@@ -193,17 +195,17 @@ export default function Dashboard() {
               <div style={s.roomGrid}>
                 {rooms.map(r => (
                   <div key={r.id} style={s.roomCard}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
                       <div style={s.roomName}>{r.displayName}</div>
                       <span style={{...s.badge,...(getRoomStatus(r.emailAddress)==="En uso"?s.bRed:s.bGreen)}}>{getRoomStatus(r.emailAddress)}</span>
                     </div>
                     <div style={s.roomMeta}>Cap. {r.capacity || "—"} · {r.building || "Campus principal"}</div>
-                    <div style={{...s.barT,marginTop:7}}><div style={{...s.barF,width:`${getOcupacion(r.emailAddress)}%`,background:"#E24B4A"}}/></div>
+                    <div style={{...s.barT,marginTop:8}}><div style={{...s.barF,width:`${getOcupacion(r.emailAddress)}%`,background:"#E24B4A"}}/></div>
                   </div>
                 ))}
                 <div style={{...s.roomCard,background:"#F0EAF7",border:"0.5px solid #AFA9EC"}}>
-                  <div style={{fontSize:12,fontWeight:500,color:"#3C3489",marginBottom:4}}>🔗 Sala Magna (combinada)</div>
-                  <div style={{fontSize:10,color:"#534AB7"}}>Tenacidad + Entusiasmo · Cap. 70 · Se activa al reservar como sala combinada</div>
+                  <div style={{fontSize:13,fontWeight:500,color:"#3C3489",marginBottom:5}}>🔗 Sala Magna (combinada)</div>
+                  <div style={{fontSize:11,color:"#534AB7"}}>Tenacidad + Entusiasmo · Cap. 70 · Se activa al reservar como sala combinada</div>
                 </div>
               </div>
             </div>
@@ -223,7 +225,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
-              <div style={{...s.secTitle,marginTop:14}}>Historial de reservas</div>
+              <div style={{...s.secTitle,marginTop:16}}>Historial de reservas</div>
               {["Historial completo de reservas","Cancelaciones y no-shows","Reservas recurrentes"].map(r => (
                 <div key={r} style={s.repRow}>
                   <div style={s.repName}>{r}</div>
@@ -262,7 +264,7 @@ export default function Dashboard() {
           {activeView === "configuracion" && isAdmin && (
             <div style={s.card}>
               <div style={s.cardTitle}>⚙️ Configuración general</div>
-              <div style={{marginBottom:13}}>
+              <div style={{marginBottom:14}}>
                 <div style={s.formSecTitle}>Organización</div>
                 <div style={s.fgrid}>
                   <div><div style={s.fl}>Nombre</div><input style={s.fi} defaultValue="Universidad Neto"/></div>
@@ -271,14 +273,14 @@ export default function Dashboard() {
                   <div><div style={s.fl}>Horario reservas</div><select style={s.fi}><option>07:00 – 21:00</option></select></div>
                 </div>
               </div>
-              <div style={{marginBottom:13}}>
+              <div style={{marginBottom:14}}>
                 <div style={s.formSecTitle}>Integración Microsoft 365</div>
                 <div style={s.fgrid}>
                   <div><div style={s.fl}>Tenant ID</div><input style={s.fi} defaultValue="e9379df0-6577-491c-ab83-65b8b438c942" readOnly/></div>
                   <div><div style={s.fl}>Client ID</div><input style={s.fi} defaultValue="c889b7fa-d0a4-4975-ae68-ed2eb9803445" readOnly/></div>
                 </div>
-                <div style={{marginTop:7,display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#666"}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",background:"#1D9E75"}}/>
+                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#666"}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:"#1D9E75"}}/>
                   Conectado a Azure AD — sincronización activa
                 </div>
               </div>
@@ -299,10 +301,10 @@ export default function Dashboard() {
 function SbItem({ label, id, active, onClick }) {
   return (
     <div onClick={() => onClick(id)} style={{
-      display:"flex",alignItems:"center",gap:8,padding:"6px 9px",
-      borderRadius:6,fontSize:12,
+      display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
+      borderRadius:6,fontSize:13,
       color: active===id ? "#fff" : "#B5D4F4",
-      cursor:"pointer",marginBottom:1,
+      cursor:"pointer",marginBottom:2,
       background: active===id ? "rgba(255,255,255,0.13)" : "none",
     }}>
       {label}
@@ -312,76 +314,76 @@ function SbItem({ label, id, active, onClick }) {
 
 function KPI({ n, label, color, bg, delta, dc }) {
   return (
-    <div style={{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"9px 11px"}}>
-      <div style={{width:26,height:26,borderRadius:6,background:bg,marginBottom:6}}/>
-      <div style={{fontSize:19,fontWeight:500,color,lineHeight:1}}>{n}</div>
-      <div style={{fontSize:10,color:"#888",marginTop:2}}>{label}</div>
-      <div style={{fontSize:10,color:dc,marginTop:2}}>{delta}</div>
+    <div style={{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"10px 13px"}}>
+      <div style={{width:28,height:28,borderRadius:6,background:bg,marginBottom:8}}/>
+      <div style={{fontSize:22,fontWeight:500,color,lineHeight:1}}>{n}</div>
+      <div style={{fontSize:11,color:"#888",marginTop:3}}>{label}</div>
+      <div style={{fontSize:10,color:dc,marginTop:3}}>{delta}</div>
     </div>
   );
 }
 
 const s = {
   app:{display:"flex",fontFamily:"'Segoe UI',system-ui,sans-serif",minHeight:"100vh",background:"#f0f3f8"},
-  sb:{width:190,background:"#042C53",display:"flex",flexDirection:"column",minHeight:"100vh",flexShrink:0},
-  sbTop:{padding:"14px 13px 11px"},
+  sb:{width:200,background:"#042C53",display:"flex",flexDirection:"column",minHeight:"100vh",flexShrink:0},
+  sbTop:{padding:"16px 14px 12px"},
   sbLabel:{fontSize:10,color:"#85B7EB",letterSpacing:".08em",textTransform:"uppercase",fontWeight:500,marginBottom:3},
-  sbTitle:{fontSize:14,fontWeight:500,color:"#fff",lineHeight:1.2},
-  sbSub:{fontSize:10,color:"#85B7EB",marginTop:2},
-  sbDiv:{height:"0.5px",background:"rgba(255,255,255,0.1)",margin:"0 13px"},
-  sbNav:{padding:"9px 7px",flex:1},
-  sbSec:{fontSize:10,color:"#85B7EB",letterSpacing:".06em",textTransform:"uppercase",padding:"7px 8px 3px",fontWeight:500},
-  sbFoot:{padding:"9px 13px",borderTop:"0.5px solid rgba(255,255,255,0.1)",marginTop:"auto",display:"flex",alignItems:"center",gap:8},
-  sbAv:{width:26,height:26,borderRadius:"50%",background:"#185FA5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:500,color:"#E6F1FB",flexShrink:0},
-  sbName:{fontSize:11,color:"#fff",fontWeight:500},
-  sbRole:{fontSize:10,color:"#85B7EB"},
+  sbTitle:{fontSize:15,fontWeight:500,color:"#fff",lineHeight:1.2},
+  sbSub:{fontSize:11,color:"#85B7EB",marginTop:2},
+  sbDiv:{height:"0.5px",background:"rgba(255,255,255,0.1)",margin:"0 14px"},
+  sbNav:{padding:"10px 8px",flex:1},
+  sbSec:{fontSize:10,color:"#85B7EB",letterSpacing:".06em",textTransform:"uppercase",padding:"8px 9px 3px",fontWeight:500},
+  sbFoot:{padding:"10px 14px",borderTop:"0.5px solid rgba(255,255,255,0.1)",marginTop:"auto",display:"flex",alignItems:"center",gap:9},
+  sbAv:{width:30,height:30,borderRadius:"50%",background:"#185FA5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:500,color:"#E6F1FB",flexShrink:0},
+  sbName:{fontSize:12,color:"#fff",fontWeight:500},
+  sbRole:{fontSize:11,color:"#85B7EB"},
   main:{flex:1,display:"flex",flexDirection:"column",minWidth:0},
-  topbar:{background:"#fff",borderBottom:"0.5px solid #eee",padding:"8px 13px",display:"flex",alignItems:"center",gap:7,flexShrink:0},
+  topbar:{background:"#fff",borderBottom:"0.5px solid #eee",padding:"9px 14px",display:"flex",alignItems:"center",gap:7,flexShrink:0},
   tbInfo:{flex:1},
-  tbTitle:{fontSize:13,fontWeight:500,color:"#222"},
-  tbSub:{fontSize:10,color:"#888"},
-  navBtn:{background:"none",border:"0.5px solid #ddd",borderRadius:6,width:24,height:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#666",flexShrink:0},
-  datePill:{fontSize:11,fontWeight:500,color:"#222",padding:"3px 9px",background:"#f5f5f5",borderRadius:20,border:"0.5px solid #eee",whiteSpace:"nowrap"},
-  todayBtn:{fontSize:11,padding:"3px 7px",borderRadius:6,border:"0.5px solid #B5D4F4",background:"#E6F1FB",color:"#0C447C",cursor:"pointer"},
-  newBtn:{display:"flex",alignItems:"center",gap:4,padding:"5px 11px",background:"#042C53",color:"#E6F1FB",border:"none",borderRadius:6,fontSize:11,fontWeight:500,cursor:"pointer",flexShrink:0},
-  logoutBtn:{padding:"5px 10px",border:"0.5px solid #ddd",borderRadius:6,fontSize:11,background:"none",color:"#888",cursor:"pointer"},
-  content:{padding:11,flex:1},
-  kpis:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7,marginBottom:10},
-  bodyGrid:{display:"grid",gridTemplateColumns:"1fr 260px",gap:9},
-  rightCol:{display:"flex",flexDirection:"column",gap:8,minWidth:0},
-  mini:{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"9px 11px"},
-  miniTitle:{fontSize:11,fontWeight:500,color:"#888",marginBottom:7},
-  roomRow:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #eee"},
-  rrName:{fontSize:11,color:"#222"},
-  badge:{fontSize:10,padding:"2px 6px",borderRadius:10,fontWeight:500},
+  tbTitle:{fontSize:14,fontWeight:500,color:"#222"},
+  tbSub:{fontSize:11,color:"#888"},
+  navBtn:{background:"none",border:"0.5px solid #ddd",borderRadius:6,width:26,height:26,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#666",flexShrink:0},
+  datePill:{fontSize:12,fontWeight:500,color:"#222",padding:"3px 10px",background:"#f5f5f5",borderRadius:20,border:"0.5px solid #eee",whiteSpace:"nowrap"},
+  todayBtn:{fontSize:12,padding:"4px 9px",borderRadius:6,border:"0.5px solid #B5D4F4",background:"#E6F1FB",color:"#0C447C",cursor:"pointer"},
+  newBtn:{display:"flex",alignItems:"center",gap:4,padding:"6px 13px",background:"#042C53",color:"#E6F1FB",border:"none",borderRadius:6,fontSize:12,fontWeight:500,cursor:"pointer",flexShrink:0},
+  logoutBtn:{padding:"5px 11px",border:"0.5px solid #ddd",borderRadius:6,fontSize:12,background:"none",color:"#888",cursor:"pointer"},
+  content:{padding:12,flex:1},
+  kpis:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12},
+  bodyGrid:{display:"grid",gridTemplateColumns:"1fr 320px",gap:10},
+  rightCol:{display:"flex",flexDirection:"column",gap:9,minWidth:0},
+  mini:{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"12px 14px"},
+  miniTitle:{fontSize:13,fontWeight:500,color:"#555",marginBottom:10},
+  roomRow:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"0.5px solid #eee"},
+  rrName:{fontSize:12,color:"#222"},
+  badge:{fontSize:11,padding:"3px 8px",borderRadius:10,fontWeight:500},
   bRed:{background:"#FCEBEB",color:"#A32D2D"},
   bGreen:{background:"#E1F5EE",color:"#085041"},
   bBlue:{background:"#E6F1FB",color:"#0C447C"},
   bPurple:{background:"#EEEDFE",color:"#3C3489"},
-  barT:{height:4,background:"#eee",borderRadius:2,overflow:"hidden",marginTop:3},
-  barF:{height:"100%",borderRadius:2},
-  nr:{padding:"6px 8px",background:"#f8f8f8",borderRadius:8,cursor:"pointer",marginBottom:4},
-  nrT:{fontSize:11,fontWeight:500,color:"#222"},
-  nrM:{fontSize:10,color:"#888",marginTop:1},
+  barT:{height:6,background:"#eee",borderRadius:3,overflow:"hidden",marginTop:3},
+  barF:{height:"100%",borderRadius:3},
+  nr:{padding:"8px 10px",background:"#f8f8f8",borderRadius:8,cursor:"pointer",marginBottom:5},
+  nrT:{fontSize:12,fontWeight:500,color:"#222"},
+  nrM:{fontSize:11,color:"#888",marginTop:2},
   msg:{padding:20,textAlign:"center",color:"#888",fontSize:13},
-  card:{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"14px 16px"},
-  cardTitle:{fontSize:13,fontWeight:500,color:"#222",marginBottom:12},
-  roomGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},
-  roomCard:{background:"#f8f8f8",borderRadius:8,padding:"10px 12px"},
-  roomName:{fontSize:12,fontWeight:500,color:"#222"},
-  roomMeta:{fontSize:10,color:"#888",marginTop:3},
-  secTitle:{fontSize:11,fontWeight:500,color:"#888",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8,paddingBottom:6,borderBottom:"0.5px solid #eee"},
-  repRow:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",background:"#f8f8f8",borderRadius:8,marginBottom:6},
-  repName:{fontSize:11,fontWeight:500,color:"#222"},
-  dlBtns:{display:"flex",gap:5},
-  dlXl:{padding:"4px 8px",border:"0.5px solid #1D6F42",borderRadius:6,fontSize:10,color:"#1D6F42",background:"none",cursor:"pointer"},
-  dlPdf:{padding:"4px 8px",border:"0.5px solid #A32D2D",borderRadius:6,fontSize:10,color:"#A32D2D",background:"none",cursor:"pointer"},
-  dlCsv:{padding:"4px 8px",border:"0.5px solid #185FA5",borderRadius:6,fontSize:10,color:"#185FA5",background:"none",cursor:"pointer"},
-  tbl:{width:"100%",borderCollapse:"collapse",fontSize:12},
-  th:{textAlign:"left",padding:"7px 9px",fontSize:10,fontWeight:500,color:"#888",borderBottom:"0.5px solid #eee"},
-  td:{padding:"7px 9px",borderBottom:"0.5px solid #eee",color:"#222"},
-  fgrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},
-  formSecTitle:{fontSize:11,fontWeight:500,color:"#888",marginBottom:7,paddingBottom:5,borderBottom:"0.5px solid #eee"},
-  fl:{fontSize:10,color:"#888",marginBottom:2},
-  fi:{width:"100%",padding:"6px 9px",border:"0.5px solid #ddd",borderRadius:6,fontSize:12,boxSizing:"border-box"},
+  card:{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"15px 17px"},
+  cardTitle:{fontSize:14,fontWeight:500,color:"#222",marginBottom:13},
+  roomGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:9},
+  roomCard:{background:"#f8f8f8",borderRadius:8,padding:"11px 13px"},
+  roomName:{fontSize:13,fontWeight:500,color:"#222"},
+  roomMeta:{fontSize:11,color:"#888",marginTop:4},
+  secTitle:{fontSize:12,fontWeight:500,color:"#888",textTransform:"uppercase",letterSpacing:".06em",marginBottom:9,paddingBottom:7,borderBottom:"0.5px solid #eee"},
+  repRow:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"#f8f8f8",borderRadius:8,marginBottom:7},
+  repName:{fontSize:12,fontWeight:500,color:"#222"},
+  dlBtns:{display:"flex",gap:6},
+  dlXl:{padding:"5px 10px",border:"0.5px solid #1D6F42",borderRadius:6,fontSize:11,color:"#1D6F42",background:"none",cursor:"pointer"},
+  dlPdf:{padding:"5px 10px",border:"0.5px solid #A32D2D",borderRadius:6,fontSize:11,color:"#A32D2D",background:"none",cursor:"pointer"},
+  dlCsv:{padding:"5px 10px",border:"0.5px solid #185FA5",borderRadius:6,fontSize:11,color:"#185FA5",background:"none",cursor:"pointer"},
+  tbl:{width:"100%",borderCollapse:"collapse",fontSize:13},
+  th:{textAlign:"left",padding:"8px 10px",fontSize:11,fontWeight:500,color:"#888",borderBottom:"0.5px solid #eee"},
+  td:{padding:"8px 10px",borderBottom:"0.5px solid #eee",color:"#222"},
+  fgrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9},
+  formSecTitle:{fontSize:12,fontWeight:500,color:"#888",marginBottom:8,paddingBottom:6,borderBottom:"0.5px solid #eee"},
+  fl:{fontSize:11,color:"#888",marginBottom:3},
+  fi:{width:"100%",padding:"7px 10px",border:"0.5px solid #ddd",borderRadius:6,fontSize:13,boxSizing:"border-box"},
 };
