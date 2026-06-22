@@ -15,7 +15,7 @@ const DURATIONS = [
 const COMBO = {
   nombre: "Sala Magna (Ejecutiva + Practicidad)",
   salas: ["salapracticidad@soyneto.onmicrosoft.com", "salaentusiasmo@soyneto.onmicrosoft.com"],
-  capacidad: 55,
+  capacidad: 70,
 };
 
 export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }) {
