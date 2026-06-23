@@ -45,16 +45,15 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     setIsCombo(combo);
   };
 
-  const getStartEnd = () => {
-    // Construir la fecha/hora local sin conversión de zona horaria
-    const [year, month, day] = form.date.split("-").map(Number);
+const getStartEnd = () => {
     const hour = Number(form.hour);
     const durHours = Number(form.duration);
-    // Crear fecha en hora local de México (el navegador puede estar en otra zona)
-    // Usamos Date.UTC para evitar ajustes automáticos del navegador
-    const start = new Date(year, month - 1, day, hour, 0, 0, 0);
-    const end = addHours(start, durHours);
-    return { start, end };
+    const endHour = hour + Math.floor(durHours);
+    const endMin = (durHours % 1) * 60;
+    // String directo en hora local sin conversión UTC
+    const startStr = `${form.date}T${String(hour).padStart(2,"0")}:00:00`;
+    const endStr = `${form.date}T${String(endHour).padStart(2,"0")}:${String(endMin).padStart(2,"0")}:00`;
+    return { start: startStr, end: endStr };
   };
 
   const genTeamsLink = () => {
