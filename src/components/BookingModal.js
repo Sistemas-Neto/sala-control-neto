@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { createBooking, checkAvailability } from "../services/graphService";
-import { addHours, setHours, setMinutes } from "date-fns";
+import { createBooking } from "../services/graphService";
+import { addHours } from "date-fns";
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 7);
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 const DURATIONS = [
   { label: "30 minutos", value: 0.5 },
   { label: "1 hora", value: 1 },
@@ -13,8 +13,8 @@ const DURATIONS = [
 ];
 
 const COMBO = {
-  nombre: "Sala Magna (Ejecutiva + Practicidad)",
-  salas: ["salapracticidad@soyneto.onmicrosoft.com", "salaentusiasmo@soyneto.onmicrosoft.com"],
+  nombre: "Sala Magna (Tenacidad + Entusiasmo)",
+  salas: ["salatenacidad@soyneto.onmicrosoft.com", "salaentusiasmo@soyneto.onmicrosoft.com"],
   capacidad: 70,
 };
 
@@ -45,9 +45,15 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     setIsCombo(combo);
   };
 
-const getStartEnd = () => {
-    const start = new Date(`${form.date}T${String(Number(form.hour)).padStart(2,"0")}:00:00`);
-    const end = addHours(start, Number(form.duration));
+  const getStartEnd = () => {
+    // Construir la fecha/hora local sin conversión de zona horaria
+    const [year, month, day] = form.date.split("-").map(Number);
+    const hour = Number(form.hour);
+    const durHours = Number(form.duration);
+    // Crear fecha en hora local de México (el navegador puede estar en otra zona)
+    // Usamos Date.UTC para evitar ajustes automáticos del navegador
+    const start = new Date(year, month - 1, day, hour, 0, 0, 0);
+    const end = addHours(start, durHours);
     return { start, end };
   };
 
@@ -63,11 +69,10 @@ const getStartEnd = () => {
     const { start, end } = getStartEnd();
 
     try {
-      setStatus("checking");
+      setStatus("creating");
       setErrorMsg("");
 
       if (isCombo) {
-        // Reservar las dos salas
         for (const email of COMBO.salas) {
           const room = rooms.find(r => r.emailAddress === email) || { emailAddress: email, displayName: email };
           await createBooking(instance, account, {
@@ -97,7 +102,7 @@ const getStartEnd = () => {
     }
   };
 
-  const isLoading = status === "checking" || status === "creating";
+  const isLoading = status === "creating";
 
   return (
     <div style={ov} onClick={onClose}>
@@ -107,14 +112,13 @@ const getStartEnd = () => {
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
         <div style={mb}>
-          {/* SELECTOR DE SALA */}
           <div>
             <div style={lbl}>Selecciona la sala</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {rooms.map(r => (
                 <div key={r.id} onClick={() => selectSala(r.emailAddress, false)}
                   style={{ ...salaOpt, ...(selSala === r.emailAddress && !isCombo ? salaSelected : {}) }}>
-                  <div style={salaIcon("🏢", "#E6F1FB")}></div>
+                  <div style={{ width: 30, height: 30, borderRadius: 6, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏢</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: "#222" }}>{r.displayName}</div>
                     <div style={{ fontSize: 10, color: "#888" }}>Cap. {r.capacity || "—"}</div>
@@ -122,10 +126,9 @@ const getStartEnd = () => {
                   <span style={{ ...badge, background: "#E1F5EE", color: "#085041" }}>Libre</span>
                 </div>
               ))}
-              {/* SALA COMBINADA */}
               <div onClick={() => selectSala("magna", true)}
                 style={{ ...salaOpt, border: isCombo ? "1.5px solid #7F77DD" : "0.5px dashed #AFA9EC", background: isCombo ? "#F0EAF7" : "#fff" }}>
-                <div style={{ width: 30, height: 30, borderRadius: 6, background: "#F0EAF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🔗</div>
+                <div style={{ width: 30, height: 30, borderRadius: 6, background: "#F0EAF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🔗</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: "#3C3489" }}>Sala Magna (combinada)</div>
                   <div style={{ fontSize: 10, color: "#534AB7" }}>Tenacidad + Entusiasmo · Cap. {COMBO.capacidad}</div>
@@ -135,10 +138,9 @@ const getStartEnd = () => {
             </div>
           </div>
 
-          {/* AVISO SALA COMBINADA */}
           {isCombo && (
             <div style={{ padding: "8px 10px", background: "#FAEEDA", border: "0.5px solid #FAC775", borderRadius: 8, fontSize: 11, color: "#633806" }}>
-              ⚠️ <strong>Reserva combinada</strong> — Ambas salas quedarán bloqueadas. Se abrirá la pared divisoria para cap. {COMBO.capacidad} personas.
+              ⚠️ <strong>Reserva combinada</strong> — Ambas salas quedarán bloqueadas. Cap. {COMBO.capacidad} personas.
             </div>
           )}
 
@@ -159,11 +161,12 @@ const getStartEnd = () => {
             </select>
           </div>
 
-          <div><div style={lbl}>Asistentes (opcional)</div><input style={inp} type="text" placeholder="correos separados por coma" value={form.attendees} onChange={set("attendees")} /></div>
+          <div><div style={lbl}>Asistentes (opcional)</div>
+            <input style={inp} type="text" placeholder="correos separados por coma" value={form.attendees} onChange={set("attendees")} />
+          </div>
 
           <div style={{ height: "0.5px", background: "#eee" }} />
 
-          {/* OPCIONALES */}
           <div style={{ display: "flex", gap: 7 }}>
             <button onClick={() => setShowTeams(!showTeams)} style={{ ...optBtn, ...(showTeams ? optBtnOn : {}) }}>
               🔵 Liga de Teams
@@ -199,7 +202,7 @@ const getStartEnd = () => {
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={onClose} style={btnSec} disabled={isLoading}>Cancelar</button>
             <button onClick={handleSubmit} style={btnPri} disabled={isLoading}>
-              {isLoading ? "Procesando…" : "✉ Reservar y enviar"}
+              {isLoading ? "Creando reserva…" : "✉ Reservar y enviar"}
             </button>
           </div>
         </div>
@@ -219,7 +222,6 @@ const inp = { width: "100%", padding: "7px 10px", border: "0.5px solid #ddd", bo
 const badge = { fontSize: 10, padding: "2px 7px", borderRadius: 10, fontWeight: 500 };
 const salaOpt = { display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "0.5px solid #ddd", borderRadius: 8, cursor: "pointer", background: "#fff", transition: "all .12s" };
 const salaSelected = { border: "1.5px solid #042C53", background: "#E6F1FB" };
-const salaIcon = (_, bg) => ({ width: 30, height: 30, borderRadius: 6, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 });
 const optBtn = { display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, border: "0.5px dashed #ddd", background: "none", fontSize: 11, color: "#666", cursor: "pointer", flex: 1, justifyContent: "center" };
 const optBtnOn = { borderColor: "#185FA5", borderStyle: "solid", background: "#E6F1FB", color: "#0C447C" };
 const optSec = { padding: "9px 11px", background: "#f8f8f8", borderRadius: 8, border: "0.5px solid #eee" };
