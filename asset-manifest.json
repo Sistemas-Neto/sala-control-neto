@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/sala-control-neto/static/js/main.e1411340.js",
+    "main.js": "/sala-control-neto/static/js/main.a6cf28fe.js",
     "index.html": "/sala-control-neto/index.html",
-    "main.e1411340.js.map": "/sala-control-neto/static/js/main.e1411340.js.map"
+    "main.a6cf28fe.js.map": "/sala-control-neto/static/js/main.a6cf28fe.js.map"
   },
   "entrypoints": [
-    "static/js/main.e1411340.js"
+    "static/js/main.a6cf28fe.js"
   ]
 }
