@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { createBooking } from "../services/graphService";
+import { createBooking, createComboBooking } from "../services/graphService";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 const DURATIONS = [
@@ -72,17 +72,18 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
       setErrorMsg("");
 
       if (isCombo) {
-        for (const email of COMBO.salas) {
-          const room = rooms.find(r => r.emailAddress === email) || { emailAddress: email, displayName: email };
-          await createBooking(instance, account, {
-            subject: form.subject,
-            roomEmail: email,
-            roomName: room.displayName || email,
-            start, end,
-            attendees: attendeesList,
-            comments: form.comments, // FIX: se pasan los comentarios
-          });
-        }
+        // Un solo evento con ambas salas como recursos = un solo correo al destinatario
+        await createComboBooking(instance, account, {
+          subject: form.subject,
+          roomEmails: COMBO.salas,
+          roomNames: COMBO.salas.map(email => {
+            const r = rooms.find(r => r.emailAddress === email);
+            return r?.displayName || email;
+          }),
+          start, end,
+          attendees: attendeesList,
+          comments: form.comments,
+        });
       } else {
         const room = rooms.find(r => r.emailAddress === selSala);
         await createBooking(instance, account, {
