@@ -1,10 +1,5 @@
 import { graphScopes } from "../authConfig";
 
-// Convierte fecha a string local en zona horaria de México
-function toMexicoDateTime(date) {
-  return date.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T");
-}
-
 async function getAccessToken(msalInstance, account) {
   try {
     const response = await msalInstance.acquireTokenSilent({
@@ -49,42 +44,30 @@ export async function getRooms(msalInstance, account) {
   }
 }
 
-// ── EVENTOS ────────────────────────────────────────────────
+// ── EVENTOS con ID real usando /me/events ──────────────────
+// Busca eventos del calendario del usuario que tengan la sala como location
 export async function getRoomEvents(msalInstance, account, roomEmail, start, end) {
   try {
-    const body = {
-      schedules: [roomEmail],
-      startTime: {
-        dateTime: toMexicoDateTime(start),
-        timeZone: "America/Mexico_City",
-      },
-      endTime: {
-        dateTime: toMexicoDateTime(end),
-        timeZone: "America/Mexico_City",
-      },
-      availabilityViewInterval: 60,
-    };
+    const startStr = start.toISOString();
+    const endStr = end.toISOString();
 
-    const data = await callGraph(msalInstance, account, "/me/calendar/getSchedule", {
-      method: "POST",
-      body: JSON.stringify(body),
+    const data = await callGraph(
+      msalInstance,
+      account,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,attendees&$top=50&$orderby=start/dateTime`
+    );
+
+    const events = data.value || [];
+
+    // Filtra solo los eventos que corresponden a esta sala
+    return events.filter(ev => {
+      const loc = ev.location?.locationEmailAddress?.toLowerCase() || "";
+      const attendees = ev.attendees || [];
+      const hasRoom = attendees.some(a =>
+        a.emailAddress?.address?.toLowerCase() === roomEmail.toLowerCase()
+      );
+      return loc === roomEmail.toLowerCase() || hasRoom;
     });
-
-    const schedule = data.value?.[0];
-    if (!schedule) return [];
-
-    return (schedule.scheduleItems || []).map((item, i) => ({
-      id: `${roomEmail}-${i}`,
-      subject: item.subject || "(Sin asunto)",
-      start: { dateTime: item.start.dateTime },
-      end: { dateTime: item.end.dateTime },
-      organizer: {
-        emailAddress: {
-          name: item.organizer?.emailAddress?.name || "—",
-          address: item.organizer?.emailAddress?.address || "",
-        },
-      },
-    }));
   } catch {
     return [];
   }
@@ -114,12 +97,12 @@ export async function checkAvailability(msalInstance, account, roomEmail, start,
     const body = {
       schedules: [roomEmail],
       startTime: {
-        dateTime: toMexicoDateTime(start),
-        timeZone: "America/Mexico_City",
+        dateTime: start.toISOString(),
+        timeZone: "UTC",
       },
       endTime: {
-        dateTime: toMexicoDateTime(end),
-        timeZone: "America/Mexico_City",
+        dateTime: end.toISOString(),
+        timeZone: "UTC",
       },
       availabilityViewInterval: 30,
     };
@@ -145,12 +128,12 @@ export async function createBooking(msalInstance, account, booking) {
   const event = {
     subject,
     start: {
-      dateTime: toMexicoDateTime(start),
-      timeZone: "America/Mexico_City",
+      dateTime: start.toISOString(),
+      timeZone: "UTC",
     },
     end: {
-      dateTime: toMexicoDateTime(end),
-      timeZone: "America/Mexico_City",
+      dateTime: end.toISOString(),
+      timeZone: "UTC",
     },
     location: {
       displayName: roomName,
@@ -173,6 +156,7 @@ export async function createBooking(msalInstance, account, booking) {
   });
 }
 
+// Cancelar con ID real del evento
 export async function cancelBooking(msalInstance, account, eventId) {
   return callGraph(msalInstance, account, `/me/events/${eventId}`, {
     method: "DELETE",
