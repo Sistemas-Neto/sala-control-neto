@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { createBooking, createComboBooking } from "../services/graphService";
+import { createBooking, createComboBooking, updateBooking } from "../services/graphService";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 const DURATIONS = [
@@ -17,20 +17,58 @@ const COMBO = {
   capacidad: 70,
 };
 
-export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }) {
+const TZ = "America/Mexico_City";
+
+function toLocal(dateStr) {
+  return new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: TZ }));
+}
+
+// Calcula duración en horas entre dos dateTime strings
+function calcDuration(startStr, endStr) {
+  const s = new Date(startStr);
+  const e = new Date(endStr);
+  return (e - s) / 3600000;
+}
+
+export default function BookingModal({ rooms, selectedDate, editEvent, editRoom, onClose, onSuccess }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
+  const isEditing = !!editEvent;
 
-  const [selSala, setSelSala] = useState(null);
+  // Si estamos editando, precargamos los valores del evento
+  const getInitialForm = () => {
+    if (isEditing) {
+      const localStart = toLocal(editEvent.start.dateTime);
+      const localEnd = toLocal(editEvent.end.dateTime);
+      const dur = calcDuration(editEvent.start.dateTime, editEvent.end.dateTime);
+      const durValue = DURATIONS.find(d => d.value === dur)?.value || dur;
+      const attendeeEmails = (editEvent.attendees || [])
+        .filter(a => a.type !== "resource")
+        .map(a => a.emailAddress?.address || "")
+        .filter(Boolean)
+        .join(", ");
+      return {
+        subject: editEvent.subject || "",
+        date: localStart.toISOString().split("T")[0],
+        hour: localStart.getHours(),
+        duration: durValue,
+        attendees: attendeeEmails,
+        comments: "",
+      };
+    }
+    return {
+      subject: "",
+      date: selectedDate.toISOString().split("T")[0],
+      hour: 9,
+      duration: 1,
+      attendees: "",
+      comments: "",
+    };
+  };
+
+  const [selSala, setSelSala] = useState(isEditing ? editRoom?.emailAddress : null);
   const [isCombo, setIsCombo] = useState(false);
-  const [form, setForm] = useState({
-    subject: "",
-    date: selectedDate.toISOString().split("T")[0],
-    hour: 9,
-    duration: 1,
-    attendees: "",
-    comments: "",
-  });
+  const [form, setForm] = useState(getInitialForm());
   const [showTeams, setShowTeams] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [teamsLink, setTeamsLink] = useState("https://teams.microsoft.com/l/meetup-join/…");
@@ -49,7 +87,6 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     const durHours = Number(form.duration);
     const endHour = hour + Math.floor(durHours);
     const endMin = (durHours % 1) * 60;
-    // String directo en hora local sin conversión UTC
     const startStr = `${form.date}T${String(hour).padStart(2, "0")}:00:00`;
     const endStr = `${form.date}T${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}:00`;
     return { start: startStr, end: endStr };
@@ -71,8 +108,19 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
       setStatus("creating");
       setErrorMsg("");
 
-      if (isCombo) {
-        // Un solo evento con ambas salas como recursos = un solo correo al destinatario
+      if (isEditing) {
+        // Modo edición — PATCH al evento existente
+        const room = rooms.find(r => r.emailAddress === selSala);
+        await updateBooking(instance, account, editEvent.id, {
+          subject: form.subject,
+          roomEmail: selSala,
+          roomName: room?.displayName || selSala,
+          start, end,
+          attendees: attendeesList,
+          comments: form.comments,
+        });
+      } else if (isCombo) {
+        // Reserva combinada — un solo evento con ambas salas
         await createComboBooking(instance, account, {
           subject: form.subject,
           roomEmails: COMBO.salas,
@@ -85,6 +133,7 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
           comments: form.comments,
         });
       } else {
+        // Reserva normal
         const room = rooms.find(r => r.emailAddress === selSala);
         await createBooking(instance, account, {
           subject: form.subject,
@@ -92,14 +141,14 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
           roomName: room?.displayName || selSala,
           start, end,
           attendees: attendeesList,
-          comments: form.comments, // FIX: se pasan los comentarios
+          comments: form.comments,
         });
       }
 
       setStatus("success");
       setTimeout(() => { onSuccess(); onClose(); }, 1500);
     } catch (err) {
-      setErrorMsg(err.message || "Error al crear la reserva.");
+      setErrorMsg(err.message || "Error al guardar la reserva.");
       setStatus("error");
     }
   };
@@ -110,16 +159,25 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     <div style={ov} onClick={onClose}>
       <div style={modal} onClick={e => e.stopPropagation()}>
         <div style={mh}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>📅 Nueva reserva</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>
+            {isEditing ? "✏️ Editar reserva" : "📅 Nueva reserva"}
+          </span>
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
         <div style={mb}>
+
+          {/* Selector de sala — en edición se muestra la sala actual bloqueada */}
           <div>
             <div style={lbl}>Selecciona la sala</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {rooms.map(r => (
-                <div key={r.id} onClick={() => selectSala(r.emailAddress, false)}
-                  style={{ ...salaOpt, ...(selSala === r.emailAddress && !isCombo ? salaSelected : {}) }}>
+                <div key={r.id} onClick={() => !isEditing && selectSala(r.emailAddress, false)}
+                  style={{
+                    ...salaOpt,
+                    ...(selSala === r.emailAddress && !isCombo ? salaSelected : {}),
+                    cursor: isEditing ? "default" : "pointer",
+                    opacity: isEditing && selSala !== r.emailAddress ? 0.45 : 1,
+                  }}>
                   <div style={{ width: 30, height: 30, borderRadius: 6, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏢</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: "#222" }}>{r.displayName}</div>
@@ -128,15 +186,17 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
                   <span style={{ ...badge, background: "#E1F5EE", color: "#085041" }}>Libre</span>
                 </div>
               ))}
-              <div onClick={() => selectSala("magna", true)}
-                style={{ ...salaOpt, border: isCombo ? "1.5px solid #7F77DD" : "0.5px dashed #AFA9EC", background: isCombo ? "#F0EAF7" : "#fff" }}>
-                <div style={{ width: 30, height: 30, borderRadius: 6, background: "#F0EAF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🔗</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "#3C3489" }}>Sala Magna (combinada)</div>
-                  <div style={{ fontSize: 10, color: "#534AB7" }}>Tenacidad + Entusiasmo · Cap. {COMBO.capacidad}</div>
+              {!isEditing && (
+                <div onClick={() => selectSala("magna", true)}
+                  style={{ ...salaOpt, border: isCombo ? "1.5px solid #7F77DD" : "0.5px dashed #AFA9EC", background: isCombo ? "#F0EAF7" : "#fff" }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 6, background: "#F0EAF7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🔗</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#3C3489" }}>Sala Magna (combinada)</div>
+                    <div style={{ fontSize: 10, color: "#534AB7" }}>Tenacidad + Entusiasmo · Cap. {COMBO.capacidad}</div>
+                  </div>
+                  <span style={{ ...badge, background: "#EEEDFE", color: "#3C3489" }}>Disponible</span>
                 </div>
-                <span style={{ ...badge, background: "#EEEDFE", color: "#3C3489" }}>Disponible</span>
-              </div>
+              )}
             </div>
           </div>
 
@@ -152,7 +212,7 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
             <div><div style={lbl}>Fecha</div><input style={inp} type="date" value={form.date} onChange={set("date")} /></div>
             <div><div style={lbl}>Hora inicio</div>
               <select style={inp} value={form.hour} onChange={set("hour")}>
-                {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "00")}:00</option>)}
+                {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
               </select>
             </div>
           </div>
@@ -170,15 +230,17 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
           <div style={{ height: "0.5px", background: "#eee" }} />
 
           <div style={{ display: "flex", gap: 7 }}>
-            <button onClick={() => setShowTeams(!showTeams)} style={{ ...optBtn, ...(showTeams ? optBtnOn : {}) }}>
-              🔵 Liga de Teams
-            </button>
+            {!isEditing && (
+              <button onClick={() => setShowTeams(!showTeams)} style={{ ...optBtn, ...(showTeams ? optBtnOn : {}) }}>
+                🔵 Liga de Teams
+              </button>
+            )}
             <button onClick={() => setShowComments(!showComments)} style={{ ...optBtn, ...(showComments ? optBtnOn : {}) }}>
               💬 Comentarios
             </button>
           </div>
 
-          {showTeams && (
+          {showTeams && !isEditing && (
             <div style={optSec}>
               <div style={{ fontSize: 11, fontWeight: 500, color: "#666", marginBottom: 5 }}>Liga de Microsoft Teams</div>
               <div style={{ display: "flex", gap: 5 }}>
@@ -196,15 +258,21 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
           )}
 
           {status === "error" && <div style={{ padding: "7px 9px", background: "#FCEBEB", borderRadius: 8, fontSize: 11, color: "#791F1F" }}>{errorMsg}</div>}
-          {status === "success" && <div style={{ padding: "7px 9px", background: "#E1F5EE", borderRadius: 8, fontSize: 11, color: "#085041" }}>✓ {isCombo ? "¡Sala Magna reservada! Ambas salas bloqueadas." : "¡Reserva creada!"}</div>}
+          {status === "success" && (
+            <div style={{ padding: "7px 9px", background: "#E1F5EE", borderRadius: 8, fontSize: 11, color: "#085041" }}>
+              ✓ {isEditing ? "¡Reserva actualizada!" : isCombo ? "¡Sala Magna reservada! Ambas salas bloqueadas." : "¡Reserva creada!"}
+            </div>
+          )}
         </div>
 
         <div style={mf}>
-          <span style={{ fontSize: 10, color: "#aaa" }}>{isCombo ? "Ambas salas quedarán bloqueadas" : "Se enviará invitación por correo"}</span>
+          <span style={{ fontSize: 10, color: "#aaa" }}>
+            {isEditing ? "Los asistentes recibirán la actualización" : isCombo ? "Ambas salas quedarán bloqueadas" : "Se enviará invitación por correo"}
+          </span>
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={onClose} style={btnSec} disabled={isLoading}>Cancelar</button>
             <button onClick={handleSubmit} style={btnPri} disabled={isLoading}>
-              {isLoading ? "Creando reserva…" : "✉ Reservar y enviar"}
+              {isLoading ? (isEditing ? "Guardando…" : "Creando reserva…") : isEditing ? "✓ Guardar cambios" : "✉ Reservar y enviar"}
             </button>
           </div>
         </div>
