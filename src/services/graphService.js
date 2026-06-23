@@ -191,6 +191,53 @@ export async function createBooking(msalInstance, account, booking) {
   });
 }
 
+// ── RESERVA COMBINADA (Sala Magna) ────────────────────────
+// Crea un solo evento con ambas salas como recursos para que
+// solo llegue un correo al destinatario y ambas salas queden bloqueadas.
+export async function createComboBooking(msalInstance, account, booking) {
+  const { subject, roomNames, roomEmails, start, end, attendees = [], comments = "" } = booking;
+
+  const event = {
+    subject,
+    body: {
+      contentType: "HTML",
+      content: comments
+        ? `<p style="font-family:sans-serif;font-size:14px;margin-bottom:16px;">${comments}</p><hr/>`
+        : "",
+    },
+    start: {
+      dateTime: typeof start === "string" ? start : toLocalISOString(start),
+      timeZone: "America/Mexico_City",
+    },
+    end: {
+      dateTime: typeof end === "string" ? end : toLocalISOString(end),
+      timeZone: "America/Mexico_City",
+    },
+    location: {
+      displayName: "Sala Magna (Tenacidad + Entusiasmo)",
+    },
+    attendees: [
+      // Ambas salas como recursos — un solo evento las bloquea a las dos
+      ...roomEmails.map((email, i) => ({
+        emailAddress: { address: email, name: roomNames[i] || email },
+        type: "resource",
+      })),
+      // Asistentes normales
+      ...attendees.map((email) => ({
+        emailAddress: { address: email.trim() },
+        type: "required",
+      })),
+    ],
+    isOnlineMeeting: true,
+    onlineMeetingProvider: "teamsForBusiness",
+  };
+
+  return callGraph(msalInstance, account, "/me/events", {
+    method: "POST",
+    body: JSON.stringify(event),
+  });
+}
+
 // Cancelar con ID real del evento
 export async function cancelBooking(msalInstance, account, eventId) {
   return callGraph(msalInstance, account, `/me/events/${eventId}`, {
