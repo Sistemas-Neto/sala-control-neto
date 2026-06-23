@@ -245,6 +245,45 @@ export async function cancelBooking(msalInstance, account, eventId) {
   });
 }
 
+// Editar una reserva existente
+export async function updateBooking(msalInstance, account, eventId, booking) {
+  const { subject, roomEmail, roomName, start, end, attendees = [], comments = "" } = booking;
+
+  const event = {
+    subject,
+    body: {
+      contentType: "HTML",
+      content: comments
+        ? `<p style="font-family:sans-serif;font-size:14px;margin-bottom:16px;">${comments}</p><hr/>`
+        : "",
+    },
+    start: {
+      dateTime: typeof start === "string" ? start : toLocalISOString(start),
+      timeZone: "America/Mexico_City",
+    },
+    end: {
+      dateTime: typeof end === "string" ? end : toLocalISOString(end),
+      timeZone: "America/Mexico_City",
+    },
+    location: {
+      displayName: roomName,
+      locationEmailAddress: roomEmail,
+    },
+    attendees: [
+      { emailAddress: { address: roomEmail, name: roomName }, type: "resource" },
+      ...attendees.map((email) => ({
+        emailAddress: { address: email.trim() },
+        type: "required",
+      })),
+    ],
+  };
+
+  return callGraph(msalInstance, account, `/me/events/${eventId}`, {
+    method: "PATCH",
+    body: JSON.stringify(event),
+  });
+}
+
 export async function getRoomStats(msalInstance, account, roomEmail) {
   const end = new Date();
   const start = new Date();
