@@ -1,5 +1,10 @@
 import { graphScopes } from "../authConfig";
 
+// Convierte fecha a string local en zona horaria de México
+function toMexicoDateTime(date) {
+  return date.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T");
+}
+
 async function getAccessToken(msalInstance, account) {
   try {
     const response = await msalInstance.acquireTokenSilent({
@@ -36,7 +41,6 @@ export async function getRooms(msalInstance, account) {
     const data = await callGraph(msalInstance, account, "/places/microsoft.graph.room");
     return data.value || [];
   } catch {
-    // Fallback: salas hardcodeadas si Place.Read.All falla
     return [
       { id: "1", displayName: "Sala Entusiasmo", emailAddress: "salaentusiasmo@soyneto.onmicrosoft.com", capacity: 35, building: "Campus principal" },
       { id: "2", displayName: "Sala Practicidad", emailAddress: "salapracticidad@soyneto.onmicrosoft.com", capacity: 20, building: "Campus principal" },
@@ -46,19 +50,18 @@ export async function getRooms(msalInstance, account) {
 }
 
 // ── EVENTOS ────────────────────────────────────────────────
-// Usa /me/calendar/getSchedule que funciona con permisos delegados
 export async function getRoomEvents(msalInstance, account, roomEmail, start, end) {
   try {
     const body = {
       schedules: [roomEmail],
-startTime: {
-  dateTime: start.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T"),
-  timeZone: "America/Mexico_City",
-},
-endTime: {
-  dateTime: end.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T"),
-  timeZone: "America/Mexico_City",
-},
+      startTime: {
+        dateTime: toMexicoDateTime(start),
+        timeZone: "America/Mexico_City",
+      },
+      endTime: {
+        dateTime: toMexicoDateTime(end),
+        timeZone: "America/Mexico_City",
+      },
       availabilityViewInterval: 60,
     };
 
@@ -70,13 +73,17 @@ endTime: {
     const schedule = data.value?.[0];
     if (!schedule) return [];
 
-    // Convertir scheduleItems a formato de eventos
     return (schedule.scheduleItems || []).map((item, i) => ({
       id: `${roomEmail}-${i}`,
       subject: item.subject || "(Sin asunto)",
       start: { dateTime: item.start.dateTime },
       end: { dateTime: item.end.dateTime },
-      organizer: { emailAddress: { name: item.organizer?.emailAddress?.name || "—", address: item.organizer?.emailAddress?.address || "" } },
+      organizer: {
+        emailAddress: {
+          name: item.organizer?.emailAddress?.name || "—",
+          address: item.organizer?.emailAddress?.address || "",
+        },
+      },
     }));
   } catch {
     return [];
@@ -106,8 +113,14 @@ export async function checkAvailability(msalInstance, account, roomEmail, start,
   try {
     const body = {
       schedules: [roomEmail],
-      startTime: { dateTime: start.toISOString(), timeZone: "America/Mexico_City" },
-      endTime: { dateTime: end.toISOString(), timeZone: "America/Mexico_City" },
+      startTime: {
+        dateTime: toMexicoDateTime(start),
+        timeZone: "America/Mexico_City",
+      },
+      endTime: {
+        dateTime: toMexicoDateTime(end),
+        timeZone: "America/Mexico_City",
+      },
       availabilityViewInterval: 30,
     };
 
@@ -131,12 +144,24 @@ export async function createBooking(msalInstance, account, booking) {
 
   const event = {
     subject,
-    start: { dateTime: start.toISOString(), timeZone: "America/Mexico_City" },
-    end: { dateTime: end.toISOString(), timeZone: "America/Mexico_City" },
-    location: { displayName: roomName, locationEmailAddress: roomEmail },
+    start: {
+      dateTime: toMexicoDateTime(start),
+      timeZone: "America/Mexico_City",
+    },
+    end: {
+      dateTime: toMexicoDateTime(end),
+      timeZone: "America/Mexico_City",
+    },
+    location: {
+      displayName: roomName,
+      locationEmailAddress: roomEmail,
+    },
     attendees: [
       { emailAddress: { address: roomEmail, name: roomName }, type: "resource" },
-      ...attendees.map((email) => ({ emailAddress: { address: email.trim() }, type: "required" })),
+      ...attendees.map((email) => ({
+        emailAddress: { address: email.trim() },
+        type: "required",
+      })),
     ],
     isOnlineMeeting: true,
     onlineMeetingProvider: "teamsForBusiness",
@@ -149,7 +174,9 @@ export async function createBooking(msalInstance, account, booking) {
 }
 
 export async function cancelBooking(msalInstance, account, eventId) {
-  return callGraph(msalInstance, account, `/me/events/${eventId}`, { method: "DELETE" });
+  return callGraph(msalInstance, account, `/me/events/${eventId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function getRoomStats(msalInstance, account, roomEmail) {
