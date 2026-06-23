@@ -6,6 +6,7 @@ import { useRooms } from "../hooks/useRooms";
 import RoomCalendar from "../components/RoomCalendar";
 import BookingModal from "../components/BookingModal";
 import StatsPanel from "../components/StatsPanel";
+import LicensesPanel from "../components/LicensesPanel";
 import { GROUP_ADMINS } from "../authConfig";
 
 export default function Dashboard() {
@@ -145,6 +146,9 @@ export default function Dashboard() {
                         <span style={{...s.badge, ...s.bPurple}}>Disponible</span>
                       </div>
                     </div>
+
+                    {/* Licencias Teams Rooms Pro */}
+                    <LicensesPanel />
 
                     {/* Ocupación del mes */}
                     <div style={s.mini}>
