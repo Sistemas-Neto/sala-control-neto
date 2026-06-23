@@ -50,7 +50,7 @@ export default function BookingModal({ rooms, selectedDate, editEvent, editRoom,
       return {
         subject: editEvent.subject || "",
         date: localStart.toISOString().split("T")[0],
-        hour: localStart.getHours(),
+        hour: `${String(localStart.getHours()).padStart(2,"0")}:${String(localStart.getMinutes()).padStart(2,"0")}`,
         duration: durValue,
         attendees: attendeeEmails,
         comments: "",
@@ -59,7 +59,7 @@ export default function BookingModal({ rooms, selectedDate, editEvent, editRoom,
     return {
       subject: "",
       date: selectedDate.toISOString().split("T")[0],
-      hour: 9,
+      hour: "09:00",
       duration: 1,
       attendees: "",
       comments: "",
@@ -83,12 +83,14 @@ export default function BookingModal({ rooms, selectedDate, editEvent, editRoom,
   };
 
   const getStartEnd = () => {
-    const hour = Number(form.hour);
+    const [startH, startM] = form.hour.split(":").map(Number);
     const durHours = Number(form.duration);
-    const endHour = hour + Math.floor(durHours);
-    const endMin = (durHours % 1) * 60;
-    const startStr = `${form.date}T${String(hour).padStart(2, "0")}:00:00`;
-    const endStr = `${form.date}T${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}:00`;
+    const totalStartMin = startH * 60 + startM;
+    const totalEndMin = totalStartMin + Math.round(durHours * 60);
+    const endH = Math.floor(totalEndMin / 60);
+    const endM = totalEndMin % 60;
+    const startStr = `${form.date}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00`;
+    const endStr = `${form.date}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
     return { start: startStr, end: endStr };
   };
 
@@ -211,9 +213,7 @@ export default function BookingModal({ rooms, selectedDate, editEvent, editRoom,
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div><div style={lbl}>Fecha</div><input style={inp} type="date" value={form.date} onChange={set("date")} /></div>
             <div><div style={lbl}>Hora inicio</div>
-              <select style={inp} value={form.hour} onChange={set("hour")}>
-                {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
-              </select>
+              <input style={inp} type="time" value={form.hour} min="07:00" max="21:00" onChange={set("hour")} />
             </div>
           </div>
 
