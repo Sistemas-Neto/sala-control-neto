@@ -45,9 +45,8 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     setIsCombo(combo);
   };
 
-  const getStartEnd = () => {
-    const base = new Date(form.date + "T00:00:00");
-    const start = setMinutes(setHours(base, Number(form.hour)), 0);
+const getStartEnd = () => {
+    const start = new Date(`${form.date}T${String(Number(form.hour)).padStart(2,"0")}:00:00`);
     const end = addHours(start, Number(form.duration));
     return { start, end };
   };
