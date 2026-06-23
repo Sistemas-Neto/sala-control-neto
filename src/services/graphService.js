@@ -1,5 +1,21 @@
 import { graphScopes } from "../authConfig";
 
+// ── HELPER: Formatea fecha sin sufijo Z para que Graph respete el timeZone ──
+// .toISOString() agrega "Z" (UTC) y Graph ignora el campo timeZone.
+// Esta función devuelve "2026-06-23T15:00:00" sin zona, para que Graph
+// interprete la hora según el timeZone que se le pasa en el body/header.
+function toLocalISOString(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    date.getFullYear() + "-" +
+    pad(date.getMonth() + 1) + "-" +
+    pad(date.getDate()) + "T" +
+    pad(date.getHours()) + ":" +
+    pad(date.getMinutes()) + ":" +
+    pad(date.getSeconds())
+  );
+}
+
 async function getAccessToken(msalInstance, account) {
   try {
     const response = await msalInstance.acquireTokenSilent({
@@ -45,16 +61,23 @@ export async function getRooms(msalInstance, account) {
 }
 
 // ── EVENTOS con ID real usando /me/events ──────────────────
-// Busca eventos del calendario del usuario que tengan la sala como location
+// FIX: Se usa toLocalISOString() en vez de toISOString() para evitar que
+// Graph interprete las horas en UTC. El header "Prefer" hace que Graph
+// devuelva los eventos ya convertidos a hora de Ciudad de México.
 export async function getRoomEvents(msalInstance, account, roomEmail, start, end) {
   try {
-    const startStr = start.toISOString();
-    const endStr = end.toISOString();
+    const startStr = toLocalISOString(start); // FIX: era start.toISOString()
+    const endStr = toLocalISOString(end);     // FIX: era end.toISOString()
 
     const data = await callGraph(
       msalInstance,
       account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,attendees&$top=50&$orderby=start/dateTime`
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,attendees&$top=50&$orderby=start/dateTime`,
+      {
+        headers: {
+          "Prefer": 'outlook.timezone="America/Mexico_City"', // FIX: Graph devuelve horas en CDMX
+        },
+      }
     );
 
     const events = data.value || [];
@@ -92,17 +115,20 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
     .map((r) => r.value);
 }
 
+// FIX: Se cambió toISOString() + timeZone "UTC" por toLocalISOString() +
+// timeZone "America/Mexico_City" para que la disponibilidad se consulte
+// en la hora correcta.
 export async function checkAvailability(msalInstance, account, roomEmail, start, end) {
   try {
     const body = {
       schedules: [roomEmail],
       startTime: {
-        dateTime: start.toISOString(),
-        timeZone: "UTC",
+        dateTime: toLocalISOString(start), // FIX: era start.toISOString()
+        timeZone: "America/Mexico_City",   // FIX: era "UTC"
       },
       endTime: {
-        dateTime: end.toISOString(),
-        timeZone: "UTC",
+        dateTime: toLocalISOString(end),   // FIX: era end.toISOString()
+        timeZone: "America/Mexico_City",   // FIX: era "UTC"
       },
       availabilityViewInterval: 30,
     };
@@ -122,19 +148,22 @@ export async function checkAvailability(msalInstance, account, roomEmail, start,
   }
 }
 
+// FIX: Se usa toLocalISOString() en vez de toISOString() para que el
+// campo timeZone: "America/Mexico_City" sea respetado por Graph.
+// Con .toISOString() el "Z" final indica UTC absoluto y Graph ignora timeZone.
 export async function createBooking(msalInstance, account, booking) {
   const { subject, roomEmail, roomName, start, end, attendees = [] } = booking;
 
   const event = {
     subject,
-start: {
-  dateTime: typeof start === "string" ? start : start.toISOString(),
-  timeZone: "America/Mexico_City",
-},
-end: {
-  dateTime: typeof end === "string" ? end : end.toISOString(),
-  timeZone: "America/Mexico_City",
-},
+    start: {
+      dateTime: typeof start === "string" ? start : toLocalISOString(start), // FIX
+      timeZone: "America/Mexico_City",
+    },
+    end: {
+      dateTime: typeof end === "string" ? end : toLocalISOString(end), // FIX
+      timeZone: "America/Mexico_City",
+    },
     location: {
       displayName: roomName,
       locationEmailAddress: roomEmail,
