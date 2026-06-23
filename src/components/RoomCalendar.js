@@ -1,13 +1,14 @@
+import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { cancelBooking } from "../services/graphService";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import BookingModal from "./BookingModal";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 const SLOT_HEIGHT = 60;
 const TZ = "America/Mexico_City";
 
-// Convierte fecha UTC a hora local de México
 function toLocal(dateStr) {
   return new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: TZ }));
 }
@@ -36,6 +37,8 @@ function isUpcoming(event) {
 export default function RoomCalendar({ rooms, events, onRefresh }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
+  const [editEvent, setEditEvent] = useState(null);
+  const [editRoom, setEditRoom] = useState(null);
 
   const handleCancel = async (eventId, subject) => {
     if (!window.confirm(`¿Cancelar la reserva "${subject}"?`)) return;
@@ -45,6 +48,11 @@ export default function RoomCalendar({ rooms, events, onRefresh }) {
     } catch (err) {
       alert("Error al cancelar: " + err.message);
     }
+  };
+
+  const handleEventClick = (ev, room) => {
+    setEditEvent(ev);
+    setEditRoom(room);
   };
 
   if (rooms.length === 0) {
@@ -59,98 +67,115 @@ export default function RoomCalendar({ rooms, events, onRefresh }) {
   const nowTop = (nowLocal.getHours() + nowLocal.getMinutes() / 60 - 7) * SLOT_HEIGHT;
 
   return (
-    <div style={styles.wrapper}>
-      {/* Header */}
-      <div style={styles.grid(rooms.length)}>
-        <div style={styles.timeHeader} />
-        {rooms.map((room) => {
-          const roomEvents = events[room.emailAddress] || [];
-          const busy = roomEvents.some(isNow);
-          return (
-            <div key={room.id} style={styles.roomHeader}>
-              <span style={styles.roomName}>{room.displayName}</span>
-              <span style={{ ...styles.statusDot, background: busy ? "#e74c3c" : "#27ae60" }} />
-              <span style={styles.statusLabel}>{busy ? "En uso" : "Libre"}</span>
-              {room.capacity && (
-                <span style={styles.capacity}>cap. {room.capacity}</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Calendario */}
-      <div style={styles.scrollArea}>
+    <>
+      <div style={styles.wrapper}>
+        {/* Header */}
         <div style={styles.grid(rooms.length)}>
-          <div style={styles.timeCol}>
-            {HOURS.map((h) => (
-              <div key={h} style={styles.timeCell}>
-                {String(h).padStart(2, "0")}:00
-              </div>
-            ))}
-          </div>
-
+          <div style={styles.timeHeader} />
           {rooms.map((room) => {
             const roomEvents = events[room.emailAddress] || [];
+            const busy = roomEvents.some(isNow);
             return (
-              <div key={room.id} style={styles.roomCol}>
-                {HOURS.map((h) => (
-                  <div key={h} style={styles.hourLine} />
-                ))}
-
-                {/* Línea "ahora" */}
-                {nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && (
-                  <div style={{ ...styles.nowLine, top: nowTop }} />
+              <div key={room.id} style={styles.roomHeader}>
+                <span style={styles.roomName}>{room.displayName}</span>
+                <span style={{ ...styles.statusDot, background: busy ? "#e74c3c" : "#27ae60" }} />
+                <span style={styles.statusLabel}>{busy ? "En uso" : "Libre"}</span>
+                {room.capacity && (
+                  <span style={styles.capacity}>cap. {room.capacity}</span>
                 )}
-
-                {/* Eventos */}
-                {roomEvents.map((ev) => {
-                  const { top, height, localStart, localEnd } = eventToSlot(ev);
-                  const now = isNow(ev);
-                  const upcoming = isUpcoming(ev);
-                  return (
-                    <div
-                      key={ev.id}
-                      style={{
-                        ...styles.event,
-                        top,
-                        height: height - 2,
-                        ...(now ? styles.eventNow : upcoming ? styles.eventUpcoming : styles.eventFuture),
-                      }}
-                    >
-                      <div style={styles.eventSubject}>{ev.subject || "(Sin asunto)"}</div>
-                      <div style={styles.eventOrganizer}>
-                        {ev.organizer?.emailAddress?.name || ev.organizer?.emailAddress?.address}
-                      </div>
-                      <div style={styles.eventTime}>
-                        {format(localStart, "HH:mm")} – {format(localEnd, "HH:mm")}
-                      </div>
-                      {!now && (
-                        <button
-                          style={styles.cancelBtn}
-                          onClick={() => handleCancel(ev.id, ev.subject)}
-                          title="Cancelar reserva"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
               </div>
             );
           })}
         </div>
+
+        {/* Calendario */}
+        <div style={styles.scrollArea}>
+          <div style={styles.grid(rooms.length)}>
+            <div style={styles.timeCol}>
+              {HOURS.map((h) => (
+                <div key={h} style={styles.timeCell}>
+                  {String(h).padStart(2, "0")}:00
+                </div>
+              ))}
+            </div>
+
+            {rooms.map((room) => {
+              const roomEvents = events[room.emailAddress] || [];
+              return (
+                <div key={room.id} style={styles.roomCol}>
+                  {HOURS.map((h) => (
+                    <div key={h} style={styles.hourLine} />
+                  ))}
+
+                  {/* Línea "ahora" */}
+                  {nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && (
+                    <div style={{ ...styles.nowLine, top: nowTop }} />
+                  )}
+
+                  {/* Eventos */}
+                  {roomEvents.map((ev) => {
+                    const { top, height, localStart, localEnd } = eventToSlot(ev);
+                    const now = isNow(ev);
+                    const upcoming = isUpcoming(ev);
+                    return (
+                      <div
+                        key={ev.id}
+                        style={{
+                          ...styles.event,
+                          top,
+                          height: height - 2,
+                          cursor: "pointer",
+                          ...(now ? styles.eventNow : upcoming ? styles.eventUpcoming : styles.eventFuture),
+                        }}
+                        onClick={() => handleEventClick(ev, room)}
+                        title="Clic para editar"
+                      >
+                        <div style={styles.eventSubject}>{ev.subject || "(Sin asunto)"}</div>
+                        <div style={styles.eventOrganizer}>
+                          {ev.organizer?.emailAddress?.name || ev.organizer?.emailAddress?.address}
+                        </div>
+                        <div style={styles.eventTime}>
+                          {format(localStart, "HH:mm")} – {format(localEnd, "HH:mm")}
+                        </div>
+                        {!now && (
+                          <button
+                            style={styles.cancelBtn}
+                            onClick={(e) => { e.stopPropagation(); handleCancel(ev.id, ev.subject); }}
+                            title="Cancelar reserva"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Leyenda */}
+        <div style={styles.legend}>
+          <LegendItem color="#e74c3c" label="En uso ahora" />
+          <LegendItem color="#e67e22" label="Próxima (≤2h)" />
+          <LegendItem color="#2980b9" label="Reservada" />
+          <LegendItem color="#27ae60" label="Libre" />
+        </div>
       </div>
 
-      {/* Leyenda */}
-      <div style={styles.legend}>
-        <LegendItem color="#e74c3c" label="En uso ahora" />
-        <LegendItem color="#e67e22" label="Próxima (≤2h)" />
-        <LegendItem color="#2980b9" label="Reservada" />
-        <LegendItem color="#27ae60" label="Libre" />
-      </div>
-    </div>
+      {/* Modal de edición */}
+      {editEvent && editRoom && (
+        <BookingModal
+          rooms={rooms}
+          selectedDate={new Date(editEvent.start.dateTime)}
+          editEvent={editEvent}
+          editRoom={editRoom}
+          onClose={() => { setEditEvent(null); setEditRoom(null); }}
+          onSuccess={() => { setEditEvent(null); setEditRoom(null); onRefresh(); }}
+        />
+      )}
+    </>
   );
 }
 
@@ -190,7 +215,7 @@ const styles = {
   roomCol: { position: "relative", borderRight: "1px solid #eee", height: SLOT_HEIGHT * HOURS.length },
   hourLine: { position: "absolute", left: 0, right: 0, height: SLOT_HEIGHT, borderBottom: "1px solid #f5f5f5", boxSizing: "border-box" },
   nowLine: { position: "absolute", left: 0, right: 0, height: 2, background: "#e74c3c", zIndex: 5, boxSizing: "border-box" },
-  event: { position: "absolute", left: 4, right: 4, borderRadius: 6, padding: "4px 8px", overflow: "hidden", cursor: "default", boxSizing: "border-box", zIndex: 2 },
+  event: { position: "absolute", left: 4, right: 4, borderRadius: 6, padding: "4px 8px", overflow: "hidden", boxSizing: "border-box", zIndex: 2 },
   eventNow: { background: "#fde8e8", borderLeft: "3px solid #e74c3c" },
   eventUpcoming: { background: "#fef3e2", borderLeft: "3px solid #e67e22" },
   eventFuture: { background: "#e8f4fd", borderLeft: "3px solid #2980b9" },
