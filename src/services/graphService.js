@@ -82,7 +82,6 @@ export async function getRoomEvents(msalInstance, account, roomEmail, start, end
 
     const events = data.value || [];
 
-    // Filtra solo los eventos que corresponden a esta sala
     return events.filter(ev => {
       const loc = ev.location?.locationEmailAddress?.toLowerCase() || "";
       const attendees = ev.attendees || [];
@@ -148,20 +147,25 @@ export async function checkAvailability(msalInstance, account, roomEmail, start,
   }
 }
 
-// FIX: Se usa toLocalISOString() en vez de toISOString() para que el
+// FIX timezone: Se usa toLocalISOString() en vez de toISOString() para que el
 // campo timeZone: "America/Mexico_City" sea respetado por Graph.
-// Con .toISOString() el "Z" final indica UTC absoluto y Graph ignora timeZone.
+// FIX comments: Se agrega el campo "body" con los comentarios del formulario
+// para que lleguen en el correo de invitación a los asistentes.
 export async function createBooking(msalInstance, account, booking) {
-  const { subject, roomEmail, roomName, start, end, attendees = [] } = booking;
+  const { subject, roomEmail, roomName, start, end, attendees = [], comments = "" } = booking; // FIX: desestructura comments
 
   const event = {
     subject,
+    body: {                    // FIX: campo nuevo para los comentarios
+      contentType: "text",
+      content: comments,
+    },
     start: {
-      dateTime: typeof start === "string" ? start : toLocalISOString(start), // FIX
+      dateTime: typeof start === "string" ? start : toLocalISOString(start), // FIX timezone
       timeZone: "America/Mexico_City",
     },
     end: {
-      dateTime: typeof end === "string" ? end : toLocalISOString(end), // FIX
+      dateTime: typeof end === "string" ? end : toLocalISOString(end), // FIX timezone
       timeZone: "America/Mexico_City",
     },
     location: {
