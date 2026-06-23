@@ -51,14 +51,14 @@ export async function getRoomEvents(msalInstance, account, roomEmail, start, end
   try {
     const body = {
       schedules: [roomEmail],
-      startTime: {
-        dateTime: start.toISOString(),
-        timeZone: "America/Mexico_City",
-      },
-      endTime: {
-        dateTime: end.toISOString(),
-        timeZone: "America/Mexico_City",
-      },
+startTime: {
+  dateTime: start.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T"),
+  timeZone: "America/Mexico_City",
+},
+endTime: {
+  dateTime: end.toLocaleString("sv-SE", { timeZone: "America/Mexico_City" }).replace(" ", "T"),
+  timeZone: "America/Mexico_City",
+},
       availabilityViewInterval: 60,
     };
 
