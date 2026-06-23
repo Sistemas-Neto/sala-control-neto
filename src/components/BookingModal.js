@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { createBooking } from "../services/graphService";
-import { addHours } from "date-fns";
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 const DURATIONS = [
@@ -45,14 +44,14 @@ export default function BookingModal({ rooms, selectedDate, onClose, onSuccess }
     setIsCombo(combo);
   };
 
-const getStartEnd = () => {
+  const getStartEnd = () => {
     const hour = Number(form.hour);
     const durHours = Number(form.duration);
     const endHour = hour + Math.floor(durHours);
     const endMin = (durHours % 1) * 60;
     // String directo en hora local sin conversión UTC
-    const startStr = `${form.date}T${String(hour).padStart(2,"0")}:00:00`;
-    const endStr = `${form.date}T${String(endHour).padStart(2,"0")}:${String(endMin).padStart(2,"0")}:00`;
+    const startStr = `${form.date}T${String(hour).padStart(2, "0")}:00:00`;
+    const endStr = `${form.date}T${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}:00`;
     return { start: startStr, end: endStr };
   };
 
@@ -66,6 +65,7 @@ const getStartEnd = () => {
     if (!form.subject.trim()) { setErrorMsg("El asunto es obligatorio."); setStatus("error"); return; }
 
     const { start, end } = getStartEnd();
+    const attendeesList = form.attendees.split(",").map(a => a.trim()).filter(Boolean);
 
     try {
       setStatus("creating");
@@ -79,7 +79,8 @@ const getStartEnd = () => {
             roomEmail: email,
             roomName: room.displayName || email,
             start, end,
-            attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean),
+            attendees: attendeesList,
+            comments: form.comments, // FIX: se pasan los comentarios
           });
         }
       } else {
@@ -89,7 +90,8 @@ const getStartEnd = () => {
           roomEmail: selSala,
           roomName: room?.displayName || selSala,
           start, end,
-          attendees: form.attendees.split(",").map(a => a.trim()).filter(Boolean),
+          attendees: attendeesList,
+          comments: form.comments, // FIX: se pasan los comentarios
         });
       }
 
@@ -149,7 +151,7 @@ const getStartEnd = () => {
             <div><div style={lbl}>Fecha</div><input style={inp} type="date" value={form.date} onChange={set("date")} /></div>
             <div><div style={lbl}>Hora inicio</div>
               <select style={inp} value={form.hour} onChange={set("hour")}>
-                {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}:00</option>)}
+                {HOURS.map(h => <option key={h} value={h}>{String(h).padStart(2, "00")}:00</option>)}
               </select>
             </div>
           </div>
