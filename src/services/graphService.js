@@ -127,14 +127,14 @@ export async function createBooking(msalInstance, account, booking) {
 
   const event = {
     subject,
-    start: {
-      dateTime: start.toISOString(),
-      timeZone: "UTC",
-    },
-    end: {
-      dateTime: end.toISOString(),
-      timeZone: "UTC",
-    },
+start: {
+  dateTime: typeof start === "string" ? start : start.toISOString(),
+  timeZone: "America/Mexico_City",
+},
+end: {
+  dateTime: typeof end === "string" ? end : end.toISOString(),
+  timeZone: "America/Mexico_City",
+},
     location: {
       displayName: roomName,
       locationEmailAddress: roomEmail,
