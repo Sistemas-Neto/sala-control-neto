@@ -306,3 +306,53 @@ export async function getRoomStats(msalInstance, account, roomEmail) {
     occupancyPct: Math.min(occupancyPct, 100),
   };
 }
+
+// ── LICENCIAS DE TEAMS ROOMS ──────────────────────────────
+// SKU real de Teams Rooms Pro: "Microsoft_Teams_Rooms_Pro"
+// Cuando tengas licencias compradas, esta función las leerá automáticamente.
+// Por ahora devuelve mock si no hay datos reales.
+export async function getTeamsRoomsLicenses(msalInstance, account) {
+  try {
+    const data = await callGraph(msalInstance, account, "/subscribedSkus");
+    const skus = data.value || [];
+
+    // Filtra solo licencias relacionadas a Teams Rooms
+    const teamsRoomSkus = skus.filter(s =>
+      s.skuPartNumber?.toLowerCase().includes("teams_rooms") ||
+      s.skuPartNumber?.toLowerCase().includes("mtr")
+    );
+
+    if (teamsRoomSkus.length === 0) {
+      // Sin licencias aún — devuelve mock para visualización
+      return [{
+        name: "Microsoft Teams Rooms Pro",
+        skuPartNumber: "Microsoft_Teams_Rooms_Pro",
+        total: 3,
+        consumed: 3,
+        available: 0,
+        expiryDate: null, // null = sin fecha (licencia de prueba/pendiente)
+        isMock: true,
+      }];
+    }
+
+    return teamsRoomSkus.map(s => ({
+      name: s.skuPartNumber.replace(/_/g, " "),
+      skuPartNumber: s.skuPartNumber,
+      total: s.prepaidUnits?.enabled || 0,
+      consumed: s.consumedUnits || 0,
+      available: (s.prepaidUnits?.enabled || 0) - (s.consumedUnits || 0),
+      expiryDate: s.prepaidUnits?.suspended > 0 ? null : null, // Graph no expone fecha directamente
+      isMock: false,
+    }));
+  } catch {
+    return [{
+      name: "Microsoft Teams Rooms Pro",
+      skuPartNumber: "Microsoft_Teams_Rooms_Pro",
+      total: 3,
+      consumed: 3,
+      available: 0,
+      expiryDate: null,
+      isMock: true,
+    }];
+  }
+}
