@@ -156,9 +156,11 @@ export async function createBooking(msalInstance, account, booking) {
 
   const event = {
     subject,
-    body: {                    // FIX: campo nuevo para los comentarios
-      contentType: "text",
-      content: comments,
+    body: {                    // FIX: HTML para que el comentario aparezca arriba del contenido de Teams
+      contentType: "HTML",
+      content: comments
+        ? `<p style="font-family:sans-serif;font-size:14px;margin-bottom:16px;">${comments}</p><hr/>`
+        : "",
     },
     start: {
       dateTime: typeof start === "string" ? start : toLocalISOString(start), // FIX timezone
