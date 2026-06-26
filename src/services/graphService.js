@@ -60,39 +60,16 @@ export async function getRooms(msalInstance, account) {
   }
 }
 
-// ── EVENTOS con ID real usando /me/events ──────────────────
-// FIX: Se usa toLocalISOString() en vez de toISOString() para evitar que
-// Graph interprete las horas en UTC. El header "Prefer" hace que Graph
-// devuelva los eventos ya convertidos a hora de Ciudad de México.
+// ── EVENTOS ────────────────────────────────────────────────
+// Una sola llamada a calendarView trae todos los eventos del día.
+// Luego distribuimos cada evento a la sala que corresponda buscando
+// en attendees (resource), location.locationEmailAddress y locations[].
+// Esto es más robusto que hacer una llamada por sala y evita filtros
+// que fallaban cuando Graph no devolvía attendees completos.
 export async function getRoomEvents(msalInstance, account, roomEmail, start, end) {
-  try {
-    const startStr = toLocalISOString(start); // FIX: era start.toISOString()
-    const endStr = toLocalISOString(end);     // FIX: era end.toISOString()
-
-    const data = await callGraph(
-      msalInstance,
-      account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,attendees&$top=50&$orderby=start/dateTime`,
-      {
-        headers: {
-          "Prefer": 'outlook.timezone="America/Mexico_City"', // FIX: Graph devuelve horas en CDMX
-        },
-      }
-    );
-
-    const events = data.value || [];
-
-    return events.filter(ev => {
-      const loc = ev.location?.locationEmailAddress?.toLowerCase() || "";
-      const attendees = ev.attendees || [];
-      const hasRoom = attendees.some(a =>
-        a.emailAddress?.address?.toLowerCase() === roomEmail.toLowerCase()
-      );
-      return loc === roomEmail.toLowerCase() || hasRoom;
-    });
-  } catch {
-    return [];
-  }
+  // Este método se mantiene por compatibilidad pero ya no se usa directamente.
+  // getAllRoomsEvents hace una sola llamada y distribuye.
+  return [];
 }
 
 export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
@@ -101,17 +78,50 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
 
-  const results = await Promise.allSettled(
-    rooms.map((room) =>
-      getRoomEvents(msalInstance, account, room.emailAddress, start, end).then(
-        (events) => ({ roomId: room.id, roomEmail: room.emailAddress, events })
-      )
-    )
-  );
+  const startStr = toLocalISOString(start);
+  const endStr = toLocalISOString(end);
 
-  return results
-    .filter((r) => r.status === "fulfilled")
-    .map((r) => r.value);
+  try {
+    const data = await callGraph(
+      msalInstance,
+      account,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=100&$orderby=start/dateTime`,
+      {
+        headers: {
+          "Prefer": 'outlook.timezone="America/Mexico_City"',
+        },
+      }
+    );
+
+    const allEvents = data.value || [];
+
+    // Para cada sala, filtra los eventos que le corresponden
+    return rooms.map((room) => {
+      const email = room.emailAddress.toLowerCase();
+      const roomEvents = allEvents.filter(ev => {
+        // 1. location principal
+        const loc = (ev.location?.locationEmailAddress || "").toLowerCase();
+        if (loc === email) return true;
+
+        // 2. locations[] (array de ubicaciones)
+        const locs = ev.locations || [];
+        if (locs.some(l => (l.locationEmailAddress || "").toLowerCase() === email)) return true;
+
+        // 3. attendees de tipo resource
+        const attendees = ev.attendees || [];
+        if (attendees.some(a =>
+          (a.emailAddress?.address || "").toLowerCase() === email
+        )) return true;
+
+        return false;
+      });
+
+      return { roomId: room.id, roomEmail: room.emailAddress, events: roomEvents };
+    });
+  } catch (err) {
+    console.error("Error cargando eventos:", err);
+    return rooms.map(room => ({ roomId: room.id, roomEmail: room.emailAddress, events: [] }));
+  }
 }
 
 // FIX: Se cambió toISOString() + timeZone "UTC" por toLocalISOString() +
