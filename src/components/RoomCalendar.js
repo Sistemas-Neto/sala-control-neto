@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import BookingModal from "./BookingModal";
 
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 - 22:00
 const SLOT_HEIGHT = 60;
 const TZ = "America/Mexico_City";
 
