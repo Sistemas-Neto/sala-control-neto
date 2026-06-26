@@ -312,22 +312,55 @@ export async function getRoomStats(msalInstance, account, roomEmail) {
   const start = new Date();
   start.setDate(start.getDate() - 30);
 
-  const events = await getRoomEvents(msalInstance, account, roomEmail, start, end);
-  let totalMinutes = 0;
-  events.forEach((ev) => {
-    const s = new Date(ev.start.dateTime);
-    const e = new Date(ev.end.dateTime);
-    totalMinutes += (e - s) / 60000;
-  });
+  const startStr = toLocalISOString(start);
+  const endStr = toLocalISOString(end);
 
-  const availableMinutes = 8 * 60 * 22;
-  const occupancyPct = Math.round((totalMinutes / availableMinutes) * 100);
-
-  return {
-    totalBookings: events.length,
-    totalHours: Math.round(totalMinutes / 60),
-    occupancyPct: Math.min(occupancyPct, 100),
+  const NORMALIZE = {
+    "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
+    "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
+    "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
   };
+  const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
+  const normalizedEmail = normalizeRoom(roomEmail);
+
+  try {
+    const data = await callGraph(
+      msalInstance,
+      account,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
+      { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
+    );
+
+    const allEvents = data.value || [];
+
+    const events = allEvents.filter(ev => {
+      const loc = normalizeRoom(ev.location?.locationEmailAddress);
+      if (loc === normalizedEmail) return true;
+      const locs = ev.locations || [];
+      if (locs.some(l => normalizeRoom(l.locationEmailAddress) === normalizedEmail)) return true;
+      const attendees = ev.attendees || [];
+      if (attendees.some(a => normalizeRoom(a.emailAddress?.address) === normalizedEmail)) return true;
+      return false;
+    });
+
+    let totalMinutes = 0;
+    events.forEach((ev) => {
+      const s = new Date(ev.start.dateTime);
+      const e = new Date(ev.end.dateTime);
+      totalMinutes += (e - s) / 60000;
+    });
+
+    const availableMinutes = 8 * 60 * 22;
+    const occupancyPct = Math.round((totalMinutes / availableMinutes) * 100);
+
+    return {
+      totalBookings: events.length,
+      totalHours: Math.round(totalMinutes / 60),
+      occupancyPct: Math.min(occupancyPct, 100),
+    };
+  } catch {
+    return { totalBookings: 0, totalHours: 0, occupancyPct: 0 };
+  }
 }
 
 // ── LICENCIAS DE TEAMS ROOMS ──────────────────────────────
