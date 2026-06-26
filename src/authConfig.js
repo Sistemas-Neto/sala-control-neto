@@ -23,6 +23,7 @@ export const loginRequest = {
     "Place.Read.All",
     "User.Read",
     "GroupMember.Read.All",
+    "Directory.Read.All", // ← AGREGAR para licencias
   ],
 };
 
@@ -32,6 +33,7 @@ export const graphScopes = {
     "Calendars.ReadWrite",
     "Place.Read.All",
     "GroupMember.Read.All",
+    "Directory.Read.All", // ← AGREGAR para licencias
   ],
 };
 
