@@ -307,10 +307,9 @@ export async function updateBooking(msalInstance, account, eventId, booking) {
   });
 }
 
-export async function getRoomStats(msalInstance, account, roomEmail) {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 30);
+export async function getRoomStats(msalInstance, account, roomEmail, customStart, customEnd) {
+  const end = customEnd || new Date();
+  const start = customStart || new Date(new Date().setDate(new Date().getDate() - 30));
 
   const startStr = toLocalISOString(start);
   const endStr = toLocalISOString(end);
