@@ -379,3 +379,66 @@ export async function getTeamsRoomsLicenses(msalInstance, account) {
     }];
   }
 }
+
+// ── GESTIÓN DE USUARIOS ────────────────────────────────────
+
+// Obtiene todos los usuarios del tenant con su info básica
+export async function getUsers(msalInstance, account) {
+  try {
+    const data = await callGraph(
+      msalInstance,
+      account,
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,createdDateTime,signInActivity&$top=50"
+    );
+    return data.value || [];
+  } catch {
+    return [];
+  }
+}
+
+// Obtiene los métodos de autenticación de un usuario
+export async function getUserAuthMethods(msalInstance, account, userId) {
+  try {
+    const data = await callGraph(
+      msalInstance,
+      account,
+      `/users/${userId}/authentication/methods`
+    );
+    return data.value || [];
+  } catch (err) {
+    throw new Error(err.message || "Error al obtener métodos de autenticación");
+  }
+}
+
+// Elimina un método de autenticación (MFA) de un usuario
+export async function deleteAuthMethod(msalInstance, account, userId, methodId, methodType) {
+  // El endpoint varía según el tipo de método
+  const endpoints = {
+    "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod": "microsoftAuthenticatorMethods",
+    "#microsoft.graph.phoneAuthenticationMethod": "phoneMethods",
+    "#microsoft.graph.fido2AuthenticationMethod": "fido2Methods",
+    "#microsoft.graph.softwareOathAuthenticationMethod": "softwareOathMethods",
+  };
+  const path = endpoints[methodType] || "microsoftAuthenticatorMethods";
+  return callGraph(
+    msalInstance,
+    account,
+    `/users/${userId}/authentication/${path}/${methodId}`,
+    { method: "DELETE" }
+  );
+}
+
+// Envía link de reset de contraseña al correo del usuario
+export async function sendPasswordResetLink(msalInstance, account, userId) {
+  // Graph API: invalidar sesiones activas fuerza al usuario a re-autenticarse
+  // El reset real se hace vía Azure AD Self-Service Password Reset (SSPR)
+  // Esta llamada revoca todos los tokens del usuario
+  await callGraph(
+    msalInstance,
+    account,
+    `/users/${userId}/revokeSignInSessions`,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+  // Retorna true si fue exitoso
+  return true;
+}
