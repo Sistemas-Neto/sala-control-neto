@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import { getRoomStats } from "../services/graphService";
+import { getRoomStats, getMagnaStats } from "../services/graphService";
 import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -35,6 +35,7 @@ export default function StatsPanel({ rooms }) {
   const [customStart, setCustomStart] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [customEnd, setCustomEnd] = useState(format(new Date(), "yyyy-MM-dd"));
   const [stats, setStats] = useState({});
+  const [magnaStats, setMagnaStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadStats = (periodId, cStart, cEnd) => {
@@ -45,17 +46,20 @@ export default function StatsPanel({ rooms }) {
       ? { start: new Date(cStart), end: new Date(cEnd + "T23:59:59") }
       : getRange(periodId);
 
-    Promise.allSettled(
-      rooms.map((r) =>
+    Promise.allSettled([
+      ...rooms.map((r) =>
         getRoomStats(instance, account, r.emailAddress, start, end).then((s) => ({
-          email: r.emailAddress,
-          ...s,
+          type: "room", email: r.emailAddress, ...s,
         }))
-      )
-    ).then((results) => {
+      ),
+      getMagnaStats(instance, account, start, end).then(s => ({ type: "magna", ...s })),
+    ]).then((results) => {
       const map = {};
       results.forEach((r) => {
-        if (r.status === "fulfilled") map[r.value.email] = r.value;
+        if (r.status === "fulfilled") {
+          if (r.value.type === "magna") setMagnaStats(r.value);
+          else map[r.value.email] = r.value;
+        }
       });
       setStats(map);
       setLoading(false);
@@ -151,6 +155,33 @@ export default function StatsPanel({ rooms }) {
                 </div>
               );
             })}
+
+            {/* Sala Magna — solo reservas combo reales */}
+            {magnaStats && (
+              <div style={{ ...st.roomCard, border: "1px solid #AFA9EC", background: "#F8F6FF" }}>
+                <div style={{ ...st.roomCardName, color: "#3C3489" }}>🔗 Sala Magna</div>
+                <div style={{ fontSize: 10, color: "#7B72D4", marginBottom: 8, marginTop: -6 }}>Solo reservas combinadas</div>
+                <div style={st.roomCardRow}>
+                  <span style={st.metricLabel}>Reservas</span>
+                  <span style={st.metricValue}>{magnaStats.totalBookings}</span>
+                </div>
+                <div style={st.roomCardRow}>
+                  <span style={st.metricLabel}>Horas usadas</span>
+                  <span style={st.metricValue}>{magnaStats.totalHours}h</span>
+                </div>
+                <div style={st.roomCardRow}>
+                  <span style={st.metricLabel}>Ocupación</span>
+                  <span style={st.metricValue}>{magnaStats.occupancyPct}%</span>
+                </div>
+                <div style={st.barTrack}>
+                  <div style={{
+                    ...st.barFill,
+                    width: `${magnaStats.occupancyPct}%`,
+                    background: magnaStats.occupancyPct > 75 ? "#e74c3c" : magnaStats.occupancyPct > 40 ? "#e67e22" : "#7B72D4",
+                  }} />
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
