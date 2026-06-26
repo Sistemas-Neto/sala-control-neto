@@ -95,22 +95,31 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
 
     const allEvents = data.value || [];
 
+    // Mapa de equivalencias entre dominio viejo y nuevo
+    const ALIAS = {
+      "practicidad@salasneto.com":  ["salapracticidad@soyneto.onmicrosoft.com", "practicidad@salasneto.com"],
+      "tenacidad@salasneto.com":    ["salatenacidad@soyneto.onmicrosoft.com",   "tenacidad@salasneto.com"],
+      "entusiasmo@salasneto.com":   ["salaentusiasmo@soyneto.onmicrosoft.com",  "entusiasmo@salasneto.com"],
+    };
+
     // Para cada sala, filtra los eventos que le corresponden
     return rooms.map((room) => {
       const email = room.emailAddress.toLowerCase();
+      const aliases = (ALIAS[email] || [email]).map(e => e.toLowerCase());
+
       const roomEvents = allEvents.filter(ev => {
         // 1. location principal
         const loc = (ev.location?.locationEmailAddress || "").toLowerCase();
-        if (loc === email) return true;
+        if (aliases.includes(loc)) return true;
 
         // 2. locations[] (array de ubicaciones)
         const locs = ev.locations || [];
-        if (locs.some(l => (l.locationEmailAddress || "").toLowerCase() === email)) return true;
+        if (locs.some(l => aliases.includes((l.locationEmailAddress || "").toLowerCase()))) return true;
 
         // 3. attendees de tipo resource
         const attendees = ev.attendees || [];
         if (attendees.some(a =>
-          (a.emailAddress?.address || "").toLowerCase() === email
+          aliases.includes((a.emailAddress?.address || "").toLowerCase())
         )) return true;
 
         return false;
