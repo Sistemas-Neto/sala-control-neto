@@ -20,8 +20,10 @@ export const loginRequest = {
     "Calendars.ReadWrite",
     "Place.Read.All",
     "User.Read",
+    "User.ReadWrite.All",
     "GroupMember.Read.All",
     "Directory.Read.All",
+    "UserAuthenticationMethod.ReadWrite.All",
   ],
 };
 
@@ -30,8 +32,11 @@ export const graphScopes = {
   scopes: [
     "Calendars.ReadWrite",
     "Place.Read.All",
+    "User.Read",
+    "User.ReadWrite.All",
     "GroupMember.Read.All",
     "Directory.Read.All",
+    "UserAuthenticationMethod.ReadWrite.All",
   ],
 };
 
