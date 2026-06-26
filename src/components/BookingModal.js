@@ -13,7 +13,7 @@ const DURATIONS = [
 
 const COMBO = {
   nombre: "Sala Magna (Tenacidad + Entusiasmo)",
-  salas: ["salatenacidad@soyneto.onmicrosoft.com", "salaentusiasmo@soyneto.onmicrosoft.com"],
+  salas: ["tenacidad@salasneto.com", "entusiasmo@salasneto.com"],
   capacidad: 70,
 };
 
