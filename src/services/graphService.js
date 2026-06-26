@@ -362,6 +362,61 @@ export async function getRoomStats(msalInstance, account, roomEmail, customStart
   }
 }
 
+
+// ── ESTADÍSTICAS SALA MAGNA ────────────────────────────────
+// Solo cuenta eventos donde AMBAS salas (Tenacidad + Entusiasmo)
+// aparecen como attendees — es decir, reservas combo reales.
+export async function getMagnaStats(msalInstance, account, customStart, customEnd) {
+  const end = customEnd || new Date();
+  const start = customStart || new Date(new Date().setDate(new Date().getDate() - 30));
+
+  const startStr = toLocalISOString(start);
+  const endStr = toLocalISOString(end);
+
+  const MAGNA_ROOMS = ["tenacidad@salasneto.com", "entusiasmo@salasneto.com"];
+  const NORMALIZE = {
+    "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
+    "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
+    "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
+  };
+  const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
+
+  try {
+    const data = await callGraph(
+      msalInstance,
+      account,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
+      { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
+    );
+
+    const allEvents = data.value || [];
+
+    // Filtra solo eventos que tienen AMBAS salas como attendees
+    const magnaEvents = allEvents.filter(ev => {
+      const attendeeEmails = (ev.attendees || []).map(a => normalizeRoom(a.emailAddress?.address));
+      return MAGNA_ROOMS.every(r => attendeeEmails.includes(r));
+    });
+
+    let totalMinutes = 0;
+    magnaEvents.forEach(ev => {
+      const s = new Date(ev.start.dateTime);
+      const e = new Date(ev.end.dateTime);
+      totalMinutes += (e - s) / 60000;
+    });
+
+    const availableMinutes = 8 * 60 * 22;
+    const occupancyPct = Math.round((totalMinutes / availableMinutes) * 100);
+
+    return {
+      totalBookings: magnaEvents.length,
+      totalHours: Math.round(totalMinutes / 60),
+      occupancyPct: Math.min(occupancyPct, 100),
+    };
+  } catch {
+    return { totalBookings: 0, totalHours: 0, occupancyPct: 0 };
+  }
+}
+
 // ── LICENCIAS DE TEAMS ROOMS ──────────────────────────────
 // SKU real de Teams Rooms Pro: "Microsoft_Teams_Rooms_Pro"
 // Cuando tengas licencias compradas, esta función las leerá automáticamente.
