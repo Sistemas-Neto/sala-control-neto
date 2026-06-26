@@ -7,6 +7,7 @@ import RoomCalendar from "../components/RoomCalendar";
 import BookingModal from "../components/BookingModal";
 import StatsPanel from "../components/StatsPanel";
 import LicensesPanel from "../components/LicensesPanel";
+import UsersPanel from "../components/UsersPanel";
 import { GROUP_ADMINS } from "../authConfig";
 
 export default function Dashboard() {
@@ -253,14 +254,7 @@ export default function Dashboard() {
           {/* ── USUARIOS ── */}
           {activeView === "usuarios" && isAdmin && (
             <div style={s.card}>
-              <div style={s.cardTitle}>👥 Usuarios con acceso</div>
-              <table style={s.tbl}>
-                <thead><tr><th style={s.th}>Nombre</th><th style={s.th}>Correo</th><th style={s.th}>Rol</th><th style={s.th}>Último acceso</th></tr></thead>
-                <tbody>
-                  <tr><td style={s.td}>Admin TI</td><td style={s.td}>sistemasneto@soyneto.onmicrosoft.com</td><td style={s.td}><span style={{...s.badge,...s.bRed}}>Admin</span></td><td style={s.td}>Hoy</td></tr>
-                  <tr><td style={s.td}>Capacitación</td><td style={s.td}>capacitacion@soyneto.onmicrosoft.com</td><td style={s.td}><span style={{...s.badge,...s.bGreen}}>Usuario</span></td><td style={s.td}>—</td></tr>
-                </tbody>
-              </table>
+              <UsersPanel />
             </div>
           )}
 
