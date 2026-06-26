@@ -3,9 +3,9 @@ import { useMsal } from "@azure/msal-react";
 import { getTeamsRoomsLicenses } from "../services/graphService";
 
 const ROOMS = [
-  { name: "Sala Tenacidad",   email: "salatenacidad@soyneto.onmicrosoft.com" },
-  { name: "Sala Practicidad", email: "salapracticidad@soyneto.onmicrosoft.com" },
-  { name: "Sala Entusiasmo",  email: "salaentusiasmo@soyneto.onmicrosoft.com" },
+  { name: "Sala Tenacidad",   email: "tenacidad@salasneto.com" },
+  { name: "Sala Practicidad", email: "practicidad@salasneto.com" },
+  { name: "Sala Entusiasmo",  email: "entusiasmo@salasneto.com" },
 ];
 
 // Simulación de fecha de expiración por sala (se reemplaza cuando lleguen licencias reales)
