@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { createBooking, createComboBooking, updateBooking } from "../services/graphService";
 
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 - 22:00
 const DURATIONS = [
   { label: "30 minutos", value: 0.5 },
   { label: "1 hora", value: 1 },
@@ -213,7 +213,7 @@ export default function BookingModal({ rooms, selectedDate, editEvent, editRoom,
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div><div style={lbl}>Fecha</div><input style={inp} type="date" value={form.date} onChange={set("date")} /></div>
             <div><div style={lbl}>Hora inicio</div>
-              <input style={inp} type="time" value={form.hour} min="07:00" max="21:00" onChange={set("hour")} />
+              <input style={inp} type="time" value={form.hour} min="07:00" max="22:00" onChange={set("hour")} />
             </div>
           </div>
 
