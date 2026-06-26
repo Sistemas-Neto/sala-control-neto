@@ -53,9 +53,9 @@ export async function getRooms(msalInstance, account) {
     return data.value || [];
   } catch {
     return [
-      { id: "1", displayName: "Sala Entusiasmo", emailAddress: "salaentusiasmo@soyneto.onmicrosoft.com", capacity: 35, building: "Campus principal" },
-      { id: "2", displayName: "Sala Practicidad", emailAddress: "salapracticidad@soyneto.onmicrosoft.com", capacity: 20, building: "Campus principal" },
-      { id: "3", displayName: "Sala Tenacidad", emailAddress: "salatenacidad@soyneto.onmicrosoft.com", capacity: 35, building: "Campus principal" },
+      { id: "1", displayName: "Sala Entusiasmo", emailAddress: "entusiasmo@salasneto.com", capacity: 35, building: "Campus principal" },
+      { id: "2", displayName: "Sala Practicidad", emailAddress: "practicidad@salasneto.com", capacity: 20, building: "Campus principal" },
+      { id: "3", displayName: "Sala Tenacidad", emailAddress: "tenacidad@salasneto.com", capacity: 35, building: "Campus principal" },
     ];
   }
 }
