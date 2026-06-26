@@ -95,36 +95,40 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
 
     const allEvents = data.value || [];
 
-    // Mapa de equivalencias entre dominio viejo y nuevo
-    const ALIAS = {
-      "practicidad@salasneto.com":  ["salapracticidad@soyneto.onmicrosoft.com", "practicidad@salasneto.com"],
-      "tenacidad@salasneto.com":    ["salatenacidad@soyneto.onmicrosoft.com",   "tenacidad@salasneto.com"],
-      "entusiasmo@salasneto.com":   ["salaentusiasmo@soyneto.onmicrosoft.com",  "entusiasmo@salasneto.com"],
+    // Normaliza correos de sala al dominio nuevo independientemente de lo que devuelva Graph
+    const NORMALIZE = {
+      "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
+      "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
+      "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
     };
+
+    // Normaliza el email de la sala que devuelve Graph al dominio nuevo
+    const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
 
     // Para cada sala, filtra los eventos que le corresponden
     return rooms.map((room) => {
-      const email = room.emailAddress.toLowerCase();
-      const aliases = (ALIAS[email] || [email]).map(e => e.toLowerCase());
+      // Normaliza el email de la sala (puede venir con dominio viejo de Graph)
+      const email = normalizeRoom(room.emailAddress);
 
       const roomEvents = allEvents.filter(ev => {
         // 1. location principal
-        const loc = (ev.location?.locationEmailAddress || "").toLowerCase();
-        if (aliases.includes(loc)) return true;
+        const loc = normalizeRoom(ev.location?.locationEmailAddress);
+        if (loc === email) return true;
 
         // 2. locations[] (array de ubicaciones)
         const locs = ev.locations || [];
-        if (locs.some(l => aliases.includes((l.locationEmailAddress || "").toLowerCase()))) return true;
+        if (locs.some(l => normalizeRoom(l.locationEmailAddress) === email)) return true;
 
         // 3. attendees de tipo resource
         const attendees = ev.attendees || [];
         if (attendees.some(a =>
-          aliases.includes((a.emailAddress?.address || "").toLowerCase())
+          normalizeRoom(a.emailAddress?.address) === email
         )) return true;
 
         return false;
       });
 
+      // Devuelve el email normalizado para que el resto del sistema lo use correctamente
       return { roomId: room.id, roomEmail: room.emailAddress, events: roomEvents };
     });
   } catch (err) {
