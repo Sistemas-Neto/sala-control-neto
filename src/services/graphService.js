@@ -388,7 +388,7 @@ export async function getUsers(msalInstance, account) {
     const data = await callGraph(
       msalInstance,
       account,
-      "/users?$select=id,displayName,userPrincipalName,accountEnabled,createdDateTime,signInActivity&$top=50"
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,createdDateTime&$top=50"
     );
     return data.value || [];
   } catch {
