@@ -24,6 +24,7 @@ export const loginRequest = {
     "GroupMember.Read.All",
     "Directory.Read.All",
     "UserAuthenticationMethod.ReadWrite.All",
+    "Sites.ReadWrite.All",
   ],
 };
 
@@ -37,6 +38,7 @@ export const graphScopes = {
     "GroupMember.Read.All",
     "Directory.Read.All",
     "UserAuthenticationMethod.ReadWrite.All",
+    "Sites.ReadWrite.All",
   ],
 };
 
