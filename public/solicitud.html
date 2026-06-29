@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Solicitud de Reserva — Universidad Neto</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f3f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.10); width: 100%; max-width: 540px; overflow: hidden; }
+    .header { background: #042C53; padding: 28px 32px; }
+    .header-label { font-size: 10px; color: #85B7EB; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+    .header-title { font-size: 22px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .header-sub { font-size: 13px; color: #85B7EB; }
+    .body { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+    .divider { height: 0.5px; background: #eee; }
+    label.section { font-size: 11px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 6px; }
+    .required { color: #E24B4A; }
+    input[type=text], input[type=email], input[type=number], select, textarea {
+      width: 100%; padding: 9px 12px; border: 0.5px solid #ddd; border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none; background: #fff; color: #222; transition: border .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #185FA5; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .sub-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+    .cal-wrap { border: 0.5px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .cal-header { background: #f8f8f8; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #eee; }
+    .cal-nav { background: none; border: 0.5px solid #ddd; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px; color: #333; }
+    .cal-titulo { font-size: 13px; font-weight: 500; color: #222; }
+    .cal-dsem { display: grid; grid-template-columns: repeat(7,1fr); background: #f8f8f8; border-bottom: 0.5px solid #eee; }
+    .cal-dsem span { text-align: center; padding: 6px 0; font-size: 11px; font-weight: 500; color: #666; }
+    .cal-dsem span.fs { color: #A32D2D; opacity: 0.5; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 8px; gap: 3px; }
+    .cal-leg { padding: 8px 14px; border-top: 0.5px solid #eee; display: flex; gap: 14px; flex-wrap: wrap; }
+    .cal-leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .cal-sel-bar { display: none; padding: 8px 14px; background: #EBF4FD; border-top: 0.5px solid #ddd; font-size: 12px; color: #185FA5; }
+    .sala-card { border: 0.5px solid #ddd; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all .12s; margin-bottom: 8px; }
+    .sala-card:last-child { margin-bottom: 0; }
+    .sala-card.sel { border: 1.5px solid #042C53; background: #E6F1FB; }
+    .sala-card.magna { border: 0.5px dashed #AFA9EC; background: #F8F6FF; }
+    .sala-card.magna.sel { border: 1.5px solid #534AB7; background: #EEEDFE; }
+    .sala-card.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    .sala-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+    .sala-placeholder { padding: 24px; background: #f8f8f8; border-radius: 8px; border: 0.5px dashed #ddd; text-align: center; }
+    .msg-error { padding: 14px 16px; background: #FCEBEB; border-radius: 8px; border: 0.5px solid #F09595; display: flex; align-items: flex-start; gap: 10px; }
+    .msg-sugerencia { padding: 10px 14px; background: #EEEDFE; border-radius: 8px; border: 0.5px solid #AFA9EC; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .footer { background: #f8f8f8; border-top: 0.5px solid #eee; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-enviar { padding: 10px 24px; background: #042C53; color: #E6F1FB; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-enviar:disabled { opacity: .6; cursor: default; }
+    #msg-global { margin: 0 32px 16px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="header-label">Universidad Neto — Campus principal</div>
+    <div class="header-title">Solicitud de reserva</div>
+    <div class="header-sub">Lunes a viernes · 8:00 am – 5:00 pm</div>
+  </div>
+
+  <div class="body" id="form-body">
+    <div class="grid-2">
+      <div><label class="section">Responsable <span class="required">*</span></label><input id="responsable" type="text" placeholder="Nombre completo"/></div>
+      <div><label class="section">Correo <span class="required">*</span></label><input id="correo" type="email" placeholder="correo@empresa.com"/></div>
+    </div>
+    <div><label class="section">Asunto de la sesión <span class="required">*</span></label><input id="asunto" type="text" placeholder="Ej: Reunión de capacitación anual"/></div>
+    <div class="divider"></div>
+
+    <div>
+      <label class="section">Fecha y horario <span class="required">*</span></label>
+      <div class="cal-wrap">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="prevMes()">‹</button>
+          <span class="cal-titulo" id="cal-titulo"></span>
+          <button class="cal-nav" onclick="nextMes()">›</button>
+        </div>
+        <div class="cal-dsem">
+          <span class="fs">Do</span><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span class="fs">Sa</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-leg">
+          <div class="cal-leg-item"><div class="dot" style="background:#1D9E75;"></div> Con disponibilidad</div>
+          <div class="cal-leg-item"><div class="dot" style="background:#E24B4A;"></div> Sin disponibilidad</div>
+          <div class="cal-leg-item"><div class="dot" style="background:#aaa;"></div> Verificando...</div>
+        </div>
+        <div class="cal-sel-bar" id="cal-sel-bar"><i class="ti ti-calendar-check"></i> <span id="cal-txt"></span></div>
+      </div>
+
+      <div id="horario-section" style="display:none; margin-top:14px;">
+        <div id="dia-lleno-msg" style="display:none;" class="msg-error">
+          <i class="ti ti-calendar-x" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
+          <div><div style="font-size:13px;font-weight:500;color:#791F1F;margin-bottom:4px;">Sin disponibilidad este día</div><div style="font-size:12px;color:#A32D2D;line-height:1.5;">Todas las salas están ocupadas. Por favor elige otra fecha.</div></div>
+        </div>
+        <div id="horario-content" style="display:none;">
+          <div class="grid-2">
+            <div><div class="sub-label">Hora de inicio</div><select id="hinicio" onchange="updateHoraFin(); checkSalas();"><option value="">-- Selecciona --</option></select></div>
+            <div><div class="sub-label">Hora de fin</div><select id="hfin" onchange="checkSalas();"><option value="">-- Selecciona hora inicio --</option></select></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div>
+      <label class="section">Número de asistentes <span class="required">*</span></label>
+      <input id="asistentes" type="number" min="1" max="70" placeholder="Ej: 20" oninput="checkSalas()" style="width:160px;"/>
+    </div>
+    <div class="divider"></div>
+
+    <div>
+      <label class="section">Sala solicitada <span class="required">*</span></label>
+      <div id="salas-placeholder" class="sala-placeholder">
+        <i class="ti ti-calendar-search" style="font-size:32px;color:#aaa;display:block;margin-bottom:8px;"></i>
+        <div style="font-size:13px;color:#888;font-weight:500;">Selecciona fecha y horario</div>
+        <div style="font-size:12px;color:#aaa;margin-top:4px;">La disponibilidad de salas aparecerá aquí</div>
+      </div>
+      <div id="sala-list" style="display:none;flex-direction:column;gap:8px;"></div>
+      <div id="msg-sin-sala" style="display:none;margin-top:8px;" class="msg-error">
+        <i class="ti ti-circle-x" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
+        <div><div style="font-size:13px;font-weight:500;color:#791F1F;margin-bottom:4px;">Sin disponibilidad para <span id="msg-n"></span> personas</div><div style="font-size:12px;color:#A32D2D;line-height:1.5;" id="msg-detalle"></div></div>
+      </div>
+    </div>
+
+    <div><label class="section">Material o requerimientos adicionales</label><textarea id="requerimientos" placeholder="Ej: Proyector, sillas adicionales, café, pizarrón..." rows="3"></textarea></div>
+  </div>
+
+  <div id="msg-global"></div>
+  <div class="footer">
+    <div>
+      <div style="font-size:11px;color:#888;">Recibirás confirmación en tu correo</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px;">La solicitud será revisada por el administrador</div>
+    </div>
+    <button class="btn-enviar" id="btn-enviar" onclick="enviar()">Enviar solicitud</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIGURACIÓN APP ────────────────────────────────────────
+var TENANT_ID    = "e9379df0-6577-491c-ab83-65b8b438c942";
+var CLIENT_ID    = "22e71b45-0dda-4890-8850-f13f1d21adb3";
+var CLIENT_SECRET= "Zbv8Q~6PvPfLQ1CwxUlpFWWfI1dI7w.3ApiEaaTM";
+var SITE_ID      = "soyneto.sharepoint.com,5c0b849c-bdff-4d81-baae-63a1791481a8,5ceb8194-2a24-4b35-8f12-5b4a43c5b5e5";
+var LIST_NAME    = "SolicitudesReserva";
+var SALAS_EMAILS = {
+  tenacidad:   "tenacidad@salasneto.com",
+  practicidad: "practicidad@salasneto.com",
+  entusiasmo:  "entusiasmo@salasneto.com",
+};
+
+// ── TOKEN ────────────────────────────────────────────────────
+var appToken = null;
+var tokenExpiry = 0;
+
+async function getAppToken() {
+  if (appToken && Date.now() < tokenExpiry) return appToken;
+  var resp = await fetch("https://login.microsoftonline.com/"+TENANT_ID+"/oauth2/v2.0/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials&client_id="+CLIENT_ID+"&client_secret="+encodeURIComponent(CLIENT_SECRET)+"&scope=https%3A%2F%2Fgraph.microsoft.com%2F.default"
+  });
+  var data = await resp.json();
+  appToken = data.access_token;
+  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+  return appToken;
+}
+
+// ── CALENDARIO ───────────────────────────────────────────────
+var hoy = new Date();
+var calAnio = hoy.getFullYear(), calMes = hoy.getMonth();
+var fechaSeleccionada = null;
+var salaSeleccionada = null;
+var nAsistentes = 0;
+var ocupadosPorFecha = {};
+var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+var HORAS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORA_LABELS = {'08:00':'8:00 AM','08:30':'8:30 AM','09:00':'9:00 AM','09:30':'9:30 AM','10:00':'10:00 AM','10:30':'10:30 AM','11:00':'11:00 AM','11:30':'11:30 AM','12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM','13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM','15:00':'3:00 PM','15:30':'3:30 PM','16:00':'4:00 PM','16:30':'4:30 PM','17:00':'5:00 PM'};
+var HORAS_FIN_ALL = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORA_FIN_LABELS = {'08:30':'8:30 AM','09:00':'9:00 AM','09:30':'9:30 AM','10:00':'10:00 AM','10:30':'10:30 AM','11:00':'11:00 AM','11:30':'11:30 AM','12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM','13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM','15:00':'3:00 PM','15:30':'3:30 PM','16:00':'4:00 PM','16:30':'4:30 PM','17:00':'5:00 PM','18:00':'6:00 PM'};
+var SALAS = [{id:'tenacidad',nombre:'Sala Tenacidad',cap:35},{id:'practicidad',nombre:'Sala Practicidad',cap:20},{id:'entusiasmo',nombre:'Sala Entusiasmo',cap:35}];
+
+// Consulta eventos reales de Graph API
+async function fetchOcupados(fStr) {
+  if (ocupadosPorFecha[fStr]) return ocupadosPorFecha[fStr];
+  var token = await getAppToken();
+  var parts = fStr.split('-');
+  var startISO = parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0')+'T08:00:00';
+  var endISO   = parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0')+'T17:00:00';
+  var ocp = {tenacidad:[], practicidad:[], entusiasmo:[]};
+
+  await Promise.all(Object.entries(SALAS_EMAILS).map(async function(entry){
+    var salaId = entry[0], email = entry[1];
+    try {
+      var res = await fetch(
+        "https://graph.microsoft.com/v1.0/users/"+email+"/calendarView?startDateTime="+startISO+"&endDateTime="+endISO+"&$select=start,end&$top=50",
+        { headers: { Authorization: "Bearer "+token, Prefer: 'outlook.timezone="America/Mexico_City"' } }
+      );
+      var data = await res.json();
+      var events = data.value || [];
+      events.forEach(function(ev){
+        var startH = ev.start.dateTime.substring(11,16);
+        var endH   = ev.end.dateTime.substring(11,16);
+        HORAS.forEach(function(h){
+          if (h >= startH && h < endH) ocp[salaId].push(h);
+        });
+      });
+    } catch(e) {}
+  }));
+
+  ocupadosPorFecha[fStr] = ocp;
+  return ocp;
+}
+
+function diaDisponible(fStr) {
+  var ocp = ocupadosPorFecha[fStr];
+  if (!ocp) return null; // null = aún no cargado
+  return SALAS.some(function(s){ return ocp[s.id].length < HORAS.length; });
+}
+
+async function precargarMes() {
+  var diasMes = new Date(calAnio, calMes+1, 0).getDate();
+  var hoyDate = new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+  var promises = [];
+  for (var d=1; d<=diasMes; d++) {
+    var fecha = new Date(calAnio, calMes, d);
+    var dia = fecha.getDay();
+    if (dia===0||dia===6||fecha<hoyDate) continue;
+    var fStr = calAnio+'-'+(calMes+1)+'-'+d;
+    if (!ocupadosPorFecha[fStr]) promises.push(fetchOcupados(fStr));
+  }
+  await Promise.all(promises);
+  renderCal();
+}
+
+function renderCal() {
+  document.getElementById('cal-titulo').textContent = MESES[calMes]+' '+calAnio;
+  var grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  var primero = new Date(calAnio,calMes,1).getDay();
+  var diasMes = new Date(calAnio,calMes+1,0).getDate();
+  var hoyDate = new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+  for (var i=0;i<primero;i++) grid.appendChild(document.createElement('div'));
+  for (var d=1;d<=diasMes;d++) {
+    var fecha = new Date(calAnio,calMes,d);
+    var dia = fecha.getDay();
+    var esFS = dia===0||dia===6;
+    var pasado = fecha < hoyDate;
+    var fStr = calAnio+'-'+(calMes+1)+'-'+d;
+    var sel = fechaSeleccionada===fStr;
+    var btn = document.createElement('div');
+    btn.style.cssText = 'text-align:center;padding:7px 2px;font-size:13px;border-radius:6px;';
+    if (esFS||pasado) {
+      btn.textContent = d;
+      btn.style.color='#aaa';btn.style.opacity='0.25';
+      if(esFS)btn.style.background='#f5f5f5';
+      btn.style.cursor='not-allowed';
+    } else if (sel) {
+      btn.textContent = d;
+      btn.style.background='#042C53';btn.style.color='#fff';btn.style.fontWeight='500';btn.style.cursor='pointer';
+    } else {
+      btn.style.cursor='pointer';btn.style.fontWeight='500';
+      var hayDisp = diaDisponible(fStr);
+      var num = document.createElement('span');num.textContent=d;num.style.display='block';btn.appendChild(num);
+      var dot = document.createElement('div');
+      dot.style.cssText='width:5px;height:5px;border-radius:50%;margin:2px auto 0;background:'+(hayDisp===null?'#ccc':hayDisp?'#1D9E75':'#E24B4A')+';';
+      btn.appendChild(dot);
+      btn.style.color = hayDisp===false?'#A32D2D':'#222';
+      if(hayDisp===false)btn.style.opacity='0.7';
+      btn.addEventListener('mouseenter',function(e){if(e.currentTarget.style.background!=='#042C53')e.currentTarget.style.background='#f0f0f0';});
+      btn.addEventListener('mouseleave',function(e){if(e.currentTarget.style.background!=='#042C53')e.currentTarget.style.background='';});
+      (function(fs,dv){btn.addEventListener('click',function(){selectFecha(fs,dv);});})(fStr,d);
+    }
+    grid.appendChild(btn);
+  }
+}
+
+async function selectFecha(fStr, dv) {
+  fechaSeleccionada=fStr; salaSeleccionada=null;
+  var parts=fStr.split('-');
+  var f=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  document.getElementById('cal-txt').textContent=DIAS_ES[f.getDay()]+' '+dv+' de '+MESES[parseInt(parts[1])-1]+' de '+parts[0];
+  document.getElementById('cal-sel-bar').style.display='block';
+  document.getElementById('horario-section').style.display='block';
+  document.getElementById('dia-lleno-msg').style.display='none';
+  document.getElementById('horario-content').style.display='none';
+  document.getElementById('salas-placeholder').style.display='block';
+  document.getElementById('sala-list').style.display='none';
+  document.getElementById('msg-sin-sala').style.display='none';
+  renderCal();
+
+  var ocp = await fetchOcupados(fStr);
+  renderCal();
+  var hayDisp = diaDisponible(fStr);
+  if(!hayDisp){document.getElementById('dia-lleno-msg').style.display='flex';return;}
+  var sel=document.getElementById('hinicio');
+  sel.innerHTML='<option value="">-- Selecciona --</option>';
+  HORAS.forEach(function(h){
+    var algunaLibre=SALAS.some(function(s){return ocp[s.id].indexOf(h)===-1;});
+    if(algunaLibre){var o=document.createElement('option');o.value=h;o.textContent=HORA_LABELS[h];sel.appendChild(o);}
+  });
+  document.getElementById('hfin').innerHTML='<option value="">-- Selecciona hora inicio --</option>';
+  document.getElementById('horario-content').style.display='block';
+}
+
+function updateHoraFin(){
+  var inicio=document.getElementById('hinicio').value;
+  var sel=document.getElementById('hfin');
+  sel.innerHTML='<option value="">-- Selecciona --</option>';
+  if(!inicio)return;
+  HORAS_FIN_ALL.forEach(function(h){if(h>inicio){var o=document.createElement('option');o.value=h;o.textContent=HORA_FIN_LABELS[h];sel.appendChild(o);}});
+}
+
+function checkSalas(){
+  nAsistentes=parseInt(document.getElementById('asistentes').value)||0;
+  var hi=document.getElementById('hinicio').value;
+  var hf=document.getElementById('hfin').value;
+  if(!fechaSeleccionada||!hi||!hf){
+    document.getElementById('salas-placeholder').style.display='block';
+    document.getElementById('sala-list').style.display='none';
+    document.getElementById('msg-sin-sala').style.display='none';
+    return;
+  }
+  var ocp=ocupadosPorFecha[fechaSeleccionada]||{tenacidad:[],practicidad:[],entusiasmo:[]};
+  var n=nAsistentes;
+  var magnaPosible=ocp.tenacidad.indexOf(hi)===-1&&ocp.entusiasmo.indexOf(hi)===-1;
+  if(n>70){
+    document.getElementById('salas-placeholder').style.display='none';
+    document.getElementById('sala-list').style.display='none';
+    document.getElementById('msg-n').textContent=n;
+    document.getElementById('msg-detalle').textContent='La capacidad máxima es de 70 personas (Sala Magna). Por favor reduce el número o contacta al administrador.';
+    document.getElementById('msg-sin-sala').style.display='flex';
+    return;
+  }
+  if(n>35&&!magnaPosible){
+    document.getElementById('salas-placeholder').style.display='none';
+    document.getElementById('sala-list').style.display='none';
+    var ocp2=[];
+    if(ocp.tenacidad.indexOf(hi)!==-1)ocp2.push('Sala Tenacidad');
+    if(ocp.entusiasmo.indexOf(hi)!==-1)ocp2.push('Sala Entusiasmo');
+    document.getElementById('msg-n').textContent=n;
+    document.getElementById('msg-detalle').textContent='Para '+n+' asistentes se requiere la Sala Magna, pero '+ocp2.join(' y ')+' '+(ocp2.length>1?'están ocupadas':'está ocupada')+' en ese horario.';
+    document.getElementById('msg-sin-sala').style.display='flex';
+    return;
+  }
+  document.getElementById('msg-sin-sala').style.display='none';
+  document.getElementById('salas-placeholder').style.display='none';
+  var list=document.getElementById('sala-list');
+  list.innerHTML='';list.style.display='flex';
+  if(n>35){
+    var av=document.createElement('div');
+    av.className='msg-sugerencia';
+    av.innerHTML='<i class="ti ti-bulb" style="font-size:16px;color:#534AB7;flex-shrink:0;"></i><div><div style="font-size:12px;font-weight:500;color:#3C3489;margin-bottom:2px;">Sugerencia: Sala Magna</div><div style="font-size:12px;color:#534AB7;line-height:1.5;">Con '+n+' asistentes la única opción es la Sala Magna — Tenacidad + Entusiasmo combinadas, capacidad para 70 personas.</div></div>';
+    list.appendChild(av);
+    list.appendChild(crearCard('magna','Sala Magna (combinada)','Tenacidad + Entusiasmo · Capacidad 70 personas',true,true,false,true));
+    return;
+  }
+  SALAS.forEach(function(s){
+    var libre=ocp[s.id].indexOf(hi)===-1;
+    var insuf=n>0&&s.cap<n;
+    list.appendChild(crearCard(s.id,s.nombre,'Capacidad '+s.cap+' personas',libre,!insuf,insuf,false));
+  });
+}
+
+function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
+  var div=document.createElement('div');div.id='card-'+id;
+  div.className='sala-card'+(esMagna?' magna':'')+((!clickable||(!libre&&!esMagna))?' disabled':'');
+  var iconBg=esMagna?'#EEEDFE':libre?'#E6F1FB':'#FCEBEB';
+  var iconColor=esMagna?'#534AB7':libre?'#185FA5':'#A32D2D';
+  var iconName=esMagna?'ti-link':'ti-building';
+  var nameColor=esMagna?'#3C3489':'#222';
+  var descColor=esMagna?'#534AB7':'#888';
+  var badgeBg=insuf?'#f0f0f0':esMagna?'#EEEDFE':libre?'#E1F5EE':'#FCEBEB';
+  var badgeColor=insuf?'#888':esMagna?'#3C3489':libre?'#085041':'#A32D2D';
+  var badgeTxt=insuf?'Cap. insuficiente':esMagna?'Disponible':libre?'Libre':'Ocupada';
+  div.innerHTML='<div class="sala-icon" style="background:'+iconBg+';"><i class="ti '+iconName+'" style="color:'+iconColor+';font-size:18px;"></i></div><div style="flex:1;"><div style="font-size:13px;font-weight:500;color:'+nameColor+';">'+nombre+'</div><div style="font-size:11px;color:'+descColor+';margin-top:2px;">'+desc+'</div></div><span class="badge" style="background:'+badgeBg+';color:'+badgeColor+';">'+badgeTxt+'</span>';
+  if(clickable&&(libre||esMagna)){
+    div.addEventListener('click',function(){
+      document.querySelectorAll('.sala-card').forEach(function(c){c.classList.remove('sel');});
+      div.classList.add('sel');salaSeleccionada=id;
+    });
+  }
+  return div;
+}
+
+async function enviar(){
+  var responsable=document.getElementById('responsable').value.trim();
+  var correo=document.getElementById('correo').value.trim();
+  var asunto=document.getElementById('asunto').value.trim();
+  var asistentes=document.getElementById('asistentes').value.trim();
+  var hi=document.getElementById('hinicio').value;
+  var hf=document.getElementById('hfin').value;
+  var requerimientos=document.getElementById('requerimientos').value.trim();
+  if(!responsable||!correo||!asunto||!asistentes||!fechaSeleccionada||!hi||!hf||!salaSeleccionada){
+    showGlobal('Por favor completa todos los campos obligatorios y selecciona una sala.','err');return;
+  }
+  document.getElementById('btn-enviar').disabled=true;
+  showGlobal('Enviando solicitud...','loading');
+  var salaNames={tenacidad:'Sala Tenacidad',practicidad:'Sala Practicidad',entusiasmo:'Sala Entusiasmo',magna:'Sala Magna'};
+  var parts=fechaSeleccionada.split('-');
+  var fechaISO=parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0');
+  try {
+    var token=await getAppToken();
+    var res=await fetch(
+      "https://graph.microsoft.com/v1.0/sites/"+SITE_ID+"/lists/"+LIST_NAME+"/items",
+      {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({fields:{
+          ResponsableDeLaSesi_x00f3_n: responsable,
+          Asunto: asunto,
+          correo: correo,
+          Asistentes: Number(asistentes),
+          HoraInicio: fechaISO+'T'+hi+':00',
+          HoraFin:    fechaISO+'T'+hf+':00',
+          Sala:       salaNames[salaSeleccionada]||salaSeleccionada,
+          RequerimientosAdicionales: requerimientos,
+          Estado:     'Pendiente',
+        }})
+      }
+    );
+    if(!res.ok)throw new Error('Error al guardar');
+    document.getElementById('form-body').style.display='none';
+    showGlobal('✓ Solicitud enviada correctamente. Recibirás confirmación en tu correo una vez que sea aprobada.','success');
+    document.getElementById('btn-enviar').style.display='none';
+  } catch(e){
+    showGlobal('Error al enviar la solicitud. Por favor intenta de nuevo.','err');
+    document.getElementById('btn-enviar').disabled=false;
+  }
+}
+
+function showGlobal(txt,tipo){
+  var a=document.getElementById('msg-global');
+  a.innerHTML='<div style="padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:4px;background:'+(tipo==='success'?'#E1F5EE':tipo==='err'?'#FCEBEB':'#f8f8f8')+';color:'+(tipo==='success'?'#085041':tipo==='err'?'#A32D2D':'#888')+';">'+txt+'</div>';
+}
+
+function prevMes(){calMes--;if(calMes<0){calMes=11;calAnio--;}ocupadosPorFecha={};renderCal();precargarMes();}
+function nextMes(){calMes++;if(calMes>11){calMes=0;calAnio++;}ocupadosPorFecha={};renderCal();precargarMes();}
+
+renderCal();
+precargarMes();
+</script>
+</body>
+</html>
