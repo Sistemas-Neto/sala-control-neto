@@ -169,7 +169,26 @@ export default function SolicitudesPanel() {
           comments:  sol.RequerimientosAdicionales || "",
         });
       }
+
       await actualizarEstado(instance, account, sol.id, "Aprobado");
+
+      // Enviar correo de confirmación
+      await fetch("https://eoupyunvochhjsp.m.pipedream.net/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          correo:         sol.correo,
+          responsable:    sol.ResponsableDeLaSesi_x00f3_n,
+          asunto:         sol.Asunto,
+          sala:           sol.Sala,
+          fecha:          new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }),
+          horaInicio:     new Date(sol.HoraInicio).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+          horaFin:        new Date(sol.HoraFin).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+          asistentes:     sol.Asistentes,
+          requerimientos: sol.RequerimientosAdicionales || "",
+        })
+      });
+
       setDetalle(null);
       await cargar();
     } catch (e) {
