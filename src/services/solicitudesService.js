@@ -13,12 +13,11 @@ async function getToken(msalInstance, account) {
   }
 }
 
-// Obtener todas las solicitudes (o solo pendientes)
-export async function getSolicitudes(msalInstance, account, soloP endientes = false) {
+// Obtener todas las solicitudes ordenadas por fecha de creación
+export async function getSolicitudes(msalInstance, account) {
   const token = await getToken(msalInstance, account);
-  const filter = soloPendientes ? "&$filter=fields/Estado eq 'Pendiente'" : "";
   const res = await fetch(
-    `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/lists/${LIST_NAME}/items?expand=fields&$top=100&$orderby=createdDateTime desc${filter}`,
+    `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/lists/${LIST_NAME}/items?expand=fields&$top=100&$orderby=createdDateTime desc`,
     { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
   );
   const data = await res.json();
