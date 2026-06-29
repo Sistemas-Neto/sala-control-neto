@@ -7,22 +7,22 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f3f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.10); width: 100%; max-width: 540px; overflow: hidden; }
-    .header { background: #042C53; padding: 28px 32px; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f3f8; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.10); width: 100%; max-width: 720px; overflow: hidden; }
+    .header { background: #042C53; padding: 32px 40px; }
     .header-label { font-size: 10px; color: #85B7EB; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
-    .header-title { font-size: 22px; font-weight: 500; color: #fff; margin-bottom: 4px; }
-    .header-sub { font-size: 13px; color: #85B7EB; }
-    .body { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+    .header-title { font-size: 26px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+    .header-sub { font-size: 14px; color: #85B7EB; }
+    .body { padding: 32px 40px; display: flex; flex-direction: column; gap: 22px; }
     .divider { height: 0.5px; background: #eee; }
-    label.section { font-size: 11px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 6px; }
+    label.section { font-size: 12px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 8px; }
     .required { color: #E24B4A; }
     input[type=text], input[type=email], input[type=number], select, textarea {
-      width: 100%; padding: 9px 12px; border: 0.5px solid #ddd; border-radius: 8px;
-      font-size: 13px; font-family: inherit; outline: none; background: #fff; color: #222; transition: border .15s;
+      width: 100%; padding: 10px 14px; border: 0.5px solid #ddd; border-radius: 8px;
+      font-size: 14px; font-family: inherit; outline: none; background: #fff; color: #222; transition: border .15s;
     }
     input:focus, select:focus, textarea:focus { border-color: #185FA5; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .sub-label { font-size: 12px; color: #666; margin-bottom: 5px; }
     .cal-wrap { border: 0.5px solid #ddd; border-radius: 8px; overflow: hidden; }
     .cal-header { background: #f8f8f8; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #eee; }
@@ -47,8 +47,8 @@
     .sala-placeholder { padding: 24px; background: #f8f8f8; border-radius: 8px; border: 0.5px dashed #ddd; text-align: center; }
     .msg-error { padding: 14px 16px; background: #FCEBEB; border-radius: 8px; border: 0.5px solid #F09595; display: flex; align-items: flex-start; gap: 10px; }
     .msg-sugerencia { padding: 10px 14px; background: #EEEDFE; border-radius: 8px; border: 0.5px solid #AFA9EC; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .footer { background: #f8f8f8; border-top: 0.5px solid #eee; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
-    .btn-enviar { padding: 10px 24px; background: #042C53; color: #E6F1FB; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .footer { background: #f8f8f8; border-top: 0.5px solid #eee; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-enviar { padding: 12px 28px; background: #042C53; color: #E6F1FB; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
     .btn-enviar:disabled { opacity: .6; cursor: default; }
     #msg-global { margin: 0 32px 16px; }
   </style>
