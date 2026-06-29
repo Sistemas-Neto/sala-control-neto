@@ -1,7 +1,7 @@
 // ── SOLICITUDES DE RESERVA — SharePoint ──────────────────────
 import { graphScopes } from "../authConfig";
 
-const SITE_ID   = "soyneto.sharepoint.com,5c0b849c-bdff-4d81-baae-63a1791481a8,5ceb8194-2a24-4b35-8f12-5b4a43c5b5e5";
+const SITE_ID = "soyneto.sharepoint.com,5c0b849c-bdff-4d81-baae-63a1791481a8,5ceb8194-2a24-4b35-8f12-5b4a43c5b5e5";
 const LIST_NAME = "SolicitudesReserva";
 
 async function getToken(msalInstance, account) {
