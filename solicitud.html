@@ -138,36 +138,11 @@
 </div>
 
 <script>
-// ── CONFIGURACIÓN APP ────────────────────────────────────────
-var TENANT_ID    = "e9379df0-6577-491c-ab83-65b8b438c942";
-var CLIENT_ID    = "22e71b45-0dda-4890-8850-f13f1d21adb3";
-var CLIENT_SECRET= "Zbv8Q~6PvPfLQ1CwxUlpFWWfI1dI7w.3ApiEaaTM";
-var SITE_ID      = "soyneto.sharepoint.com,5c0b849c-bdff-4d81-baae-63a1791481a8,5ceb8194-2a24-4b35-8f12-5b4a43c5b5e5";
-var LIST_NAME    = "SolicitudesReserva";
-var SALAS_EMAILS = {
-  tenacidad:   "tenacidad@salasneto.com",
-  practicidad: "practicidad@salasneto.com",
-  entusiasmo:  "entusiasmo@salasneto.com",
-};
+// ── PIPEDREAM ENDPOINTS (reemplaza llamadas directas a Microsoft) ─────────
+var PD_DISPONIBILIDAD = "https://eoxe6q8npgjxfg2.m.pipedream.net";
+var PD_RESERVAR       = "https://eo7nc008wnu0d8e.m.pipedream.net";
 
-// ── TOKEN ────────────────────────────────────────────────────
-var appToken = null;
-var tokenExpiry = 0;
-
-async function getAppToken() {
-  if (appToken && Date.now() < tokenExpiry) return appToken;
-  var resp = await fetch("https://login.microsoftonline.com/"+TENANT_ID+"/oauth2/v2.0/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "grant_type=client_credentials&client_id="+CLIENT_ID+"&client_secret="+encodeURIComponent(CLIENT_SECRET)+"&scope=https%3A%2F%2Fgraph.microsoft.com%2F.default"
-  });
-  var data = await resp.json();
-  appToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return appToken;
-}
-
-// ── CALENDARIO ───────────────────────────────────────────────
+// ── CALENDARIO ───────────────────────────────────────────────────────────
 var hoy = new Date();
 var calAnio = hoy.getFullYear(), calMes = hoy.getMonth();
 var fechaSeleccionada = null;
@@ -182,41 +157,28 @@ var HORAS_FIN_ALL = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12
 var HORA_FIN_LABELS = {'08:30':'8:30 AM','09:00':'9:00 AM','09:30':'9:30 AM','10:00':'10:00 AM','10:30':'10:30 AM','11:00':'11:00 AM','11:30':'11:30 AM','12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM','13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM','15:00':'3:00 PM','15:30':'3:30 PM','16:00':'4:00 PM','16:30':'4:30 PM','17:00':'5:00 PM','18:00':'6:00 PM'};
 var SALAS = [{id:'tenacidad',nombre:'Sala Tenacidad',cap:35},{id:'practicidad',nombre:'Sala Practicidad',cap:20},{id:'entusiasmo',nombre:'Sala Entusiasmo',cap:35}];
 
-// Consulta eventos reales de Graph API
+// ── FETCH DISPONIBILIDAD VÍA PIPEDREAM (sin CORS) ────────────────────────
 async function fetchOcupados(fStr) {
   if (ocupadosPorFecha[fStr]) return ocupadosPorFecha[fStr];
-  var token = await getAppToken();
-  var parts = fStr.split('-');
-  var startISO = parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0')+'T08:00:00';
-  var endISO   = parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0')+'T17:00:00';
-  var ocp = {tenacidad:[], practicidad:[], entusiasmo:[]};
-
-  await Promise.all(Object.entries(SALAS_EMAILS).map(async function(entry){
-    var salaId = entry[0], email = entry[1];
-    try {
-      var res = await fetch(
-        "https://graph.microsoft.com/v1.0/users/"+email+"/calendarView?startDateTime="+startISO+"&endDateTime="+endISO+"&$select=start,end&$top=50",
-        { headers: { Authorization: "Bearer "+token, Prefer: 'outlook.timezone="America/Mexico_City"' } }
-      );
-      var data = await res.json();
-      var events = data.value || [];
-      events.forEach(function(ev){
-        var startH = ev.start.dateTime.substring(11,16);
-        var endH   = ev.end.dateTime.substring(11,16);
-        HORAS.forEach(function(h){
-          if (h >= startH && h < endH) ocp[salaId].push(h);
-        });
-      });
-    } catch(e) {}
-  }));
-
-  ocupadosPorFecha[fStr] = ocp;
-  return ocp;
+  try {
+    var res = await fetch(PD_DISPONIBILIDAD, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fecha: fStr })
+    });
+    var data = await res.json();
+    ocupadosPorFecha[fStr] = data;
+    return data;
+  } catch(e) {
+    var vacio = {tenacidad:[], practicidad:[], entusiasmo:[]};
+    ocupadosPorFecha[fStr] = vacio;
+    return vacio;
+  }
 }
 
 function diaDisponible(fStr) {
   var ocp = ocupadosPorFecha[fStr];
-  if (!ocp) return null; // null = aún no cargado
+  if (!ocp) return null;
   return SALAS.some(function(s){ return ocp[s.id].length < HORAS.length; });
 }
 
@@ -385,6 +347,7 @@ function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
   return div;
 }
 
+// ── ENVIAR RESERVA VÍA PIPEDREAM (sin CORS) ──────────────────────────────
 async function enviar(){
   var responsable=document.getElementById('responsable').value.trim();
   var correo=document.getElementById('correo').value.trim();
@@ -402,26 +365,21 @@ async function enviar(){
   var parts=fechaSeleccionada.split('-');
   var fechaISO=parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0');
   try {
-    var token=await getAppToken();
-    var res=await fetch(
-      "https://graph.microsoft.com/v1.0/sites/"+SITE_ID+"/lists/"+LIST_NAME+"/items",
-      {
-        method:'POST',
-        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({fields:{
-          ResponsableDeLaSesi_x00f3_n: responsable,
-          Asunto: asunto,
-          correo: correo,
-          Asistentes: Number(asistentes),
-          HoraInicio: fechaISO+'T'+hi+':00',
-          HoraFin:    fechaISO+'T'+hf+':00',
-          Sala:       salaNames[salaSeleccionada]||salaSeleccionada,
-          RequerimientosAdicionales: requerimientos,
-          Estado:     'Pendiente',
-        }})
-      }
-    );
-    if(!res.ok)throw new Error('Error al guardar');
+    var res = await fetch(PD_RESERVAR, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        responsable:    responsable,
+        correo:         correo,
+        asunto:         asunto,
+        asistentes:     asistentes,
+        horaInicio:     fechaISO+'T'+hi+':00',
+        horaFin:        fechaISO+'T'+hf+':00',
+        sala:           salaNames[salaSeleccionada]||salaSeleccionada,
+        requerimientos: requerimientos
+      })
+    });
+    if(!res.ok) throw new Error('Error al guardar');
     document.getElementById('form-body').style.display='none';
     showGlobal('✓ Solicitud enviada correctamente. Recibirás confirmación en tu correo una vez que sea aprobada.','success');
     document.getElementById('btn-enviar').style.display='none';
