@@ -66,6 +66,20 @@
       <div><label class="section">Responsable <span class="required">*</span></label><input id="responsable" type="text" placeholder="Nombre completo"/></div>
       <div><label class="section">Correo <span class="required">*</span></label><input id="correo" type="email" placeholder="correo@empresa.com"/></div>
     </div>
+    <div class="grid-2">
+      <div><label class="section">Área <span class="required">*</span></label><input id="area" type="text" placeholder="Ej: Recursos Humanos"/></div>
+      <div><label class="section">Compañía <span class="required">*</span></label>
+        <select id="compania">
+          <option value="">-- Selecciona --</option>
+          <option value="ACAPULCO">ACAPULCO</option>
+          <option value="CENTRO">CENTRO</option>
+          <option value="ORIENTE">ORIENTE</option>
+          <option value="PONIENTE">PONIENTE</option>
+          <option value="SURESTE">SURESTE</option>
+          <option value="HOLDING">HOLDING</option>
+        </select>
+      </div>
+    </div>
     <div><label class="section">Asunto de la sesión <span class="required">*</span></label><input id="asunto" type="text" placeholder="Ej: Reunión de capacitación anual"/></div>
     <div class="divider"></div>
 
@@ -351,12 +365,14 @@ function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
 async function enviar(){
   var responsable=document.getElementById('responsable').value.trim();
   var correo=document.getElementById('correo').value.trim();
+  var area=document.getElementById('area').value.trim();
+  var compania=document.getElementById('compania').value;
   var asunto=document.getElementById('asunto').value.trim();
   var asistentes=document.getElementById('asistentes').value.trim();
   var hi=document.getElementById('hinicio').value;
   var hf=document.getElementById('hfin').value;
   var requerimientos=document.getElementById('requerimientos').value.trim();
-  if(!responsable||!correo||!asunto||!asistentes||!fechaSeleccionada||!hi||!hf||!salaSeleccionada){
+  if(!responsable||!correo||!area||!compania||!asunto||!asistentes||!fechaSeleccionada||!hi||!hf||!salaSeleccionada){
     showGlobal('Por favor completa todos los campos obligatorios y selecciona una sala.','err');return;
   }
   document.getElementById('btn-enviar').disabled=true;
@@ -371,6 +387,8 @@ async function enviar(){
       body: JSON.stringify({
         responsable:    responsable,
         correo:         correo,
+        area:           area,
+        compania:       compania,
         asunto:         asunto,
         asistentes:     asistentes,
         horaInicio:     fechaISO+'T'+hi+':00',
