@@ -8,6 +8,7 @@ import BookingModal from "../components/BookingModal";
 import StatsPanel from "../components/StatsPanel";
 import LicensesPanel from "../components/LicensesPanel";
 import UsersPanel from "../components/UsersPanel";
+import SolicitudesPanel from "../components/SolicitudesPanel";
 import { GROUP_ADMINS } from "../authConfig";
 
 export default function Dashboard() {
@@ -22,13 +23,14 @@ export default function Dashboard() {
   const handleLogout = () => instance.logoutRedirect();
 
   const VIEWS = {
-    dashboard: "Dashboard de salas",
-    calendario: "Calendario semanal",
-    salas: "Gestión de salas",
+    dashboard:    "Dashboard de salas",
+    calendario:   "Calendario semanal",
+    salas:        "Gestión de salas",
+    solicitudes:  "Solicitudes de reserva",
     estadisticas: "Estadísticas de uso",
-    exportar: "Exportar reportes",
-    usuarios: "Usuarios con acceso",
-    configuracion: "Configuración",
+    exportar:     "Exportar reportes",
+    usuarios:     "Usuarios con acceso",
+    configuracion:"Configuración",
   };
 
   const initials = (name) => name ? name.split(" ").map(n => n[0]).join("").substring(0,2).toUpperCase() : "UN";
@@ -71,15 +73,16 @@ export default function Dashboard() {
         <div style={s.sbDiv}/>
         <nav style={s.sbNav}>
           <div style={s.sbSec}>Principal</div>
-          <SbItem label="Dashboard" id="dashboard" active={activeView} onClick={setActiveView}/>
-          <SbItem label="Calendario" id="calendario" active={activeView} onClick={setActiveView}/>
-          <SbItem label="Salas" id="salas" active={activeView} onClick={setActiveView}/>
+          <SbItem label="Dashboard"    id="dashboard"   active={activeView} onClick={setActiveView}/>
+          <SbItem label="Calendario"   id="calendario"  active={activeView} onClick={setActiveView}/>
+          <SbItem label="Salas"        id="salas"       active={activeView} onClick={setActiveView}/>
+          <SbItem label="Solicitudes"  id="solicitudes" active={activeView} onClick={setActiveView}/>
           <div style={s.sbSec}>Análisis</div>
           <SbItem label="Estadísticas" id="estadisticas" active={activeView} onClick={setActiveView}/>
-          <SbItem label="Exportar" id="exportar" active={activeView} onClick={setActiveView}/>
+          <SbItem label="Exportar"     id="exportar"    active={activeView} onClick={setActiveView}/>
           {isAdmin && (<>
             <div style={s.sbSec}>Administración</div>
-            <SbItem label="Usuarios" id="usuarios" active={activeView} onClick={setActiveView}/>
+            <SbItem label="Usuarios"      id="usuarios"      active={activeView} onClick={setActiveView}/>
             <SbItem label="Configuración" id="configuracion" active={activeView} onClick={setActiveView}/>
           </>)}
         </nav>
@@ -188,6 +191,11 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── SOLICITUDES ── */}
+          {activeView === "solicitudes" && (
+            <SolicitudesPanel />
           )}
 
           {/* ── ESTADÍSTICAS ── */}
