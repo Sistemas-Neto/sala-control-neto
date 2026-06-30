@@ -226,7 +226,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     <>
       <div style={{ background: "#fff", border: "0.5px solid #eee", borderRadius: 10, padding: "15px 17px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "#222" }}>📋 Solicitudes de reserva</div>
+          <div style={{ fontSize: 16, fontWeight: 500, color: "#222" }}>📋 Solicitudes de reserva</div>
           <div style={{ display: "flex", gap: 6 }}>
             {["Pendiente", "Aprobado", "Rechazado", "Todas"].map(f => (
               <button key={f} onClick={() => setFiltro(f)} style={{
@@ -251,11 +251,11 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: "0.5px solid #eee" }}>
                   {["Responsable", "Área", "Compañía", "Asunto", "Sala", "Fecha", "Horario", "Asist.", "Estado", isAdmin ? "Acciones" : ""].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "7px 8px", fontSize: 11, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ textAlign: "left", padding: "8px 9px", fontSize: 13, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
