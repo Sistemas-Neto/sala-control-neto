@@ -73,11 +73,7 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
       msalInstance,
       account,
       `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=100&$orderby=start/dateTime`,
-      {
-        headers: {
-          "Prefer": 'outlook.timezone="America/Mexico_City"',
-        },
-      }
+      { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
     );
 
     const allEvents = data.value || [];
@@ -92,22 +88,15 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
 
     return rooms.map((room) => {
       const email = normalizeRoom(room.emailAddress);
-
       const roomEvents = allEvents.filter(ev => {
         const loc = normalizeRoom(ev.location?.locationEmailAddress);
         if (loc === email) return true;
-
         const locs = ev.locations || [];
         if (locs.some(l => normalizeRoom(l.locationEmailAddress) === email)) return true;
-
         const attendees = ev.attendees || [];
-        if (attendees.some(a =>
-          normalizeRoom(a.emailAddress?.address) === email
-        )) return true;
-
+        if (attendees.some(a => normalizeRoom(a.emailAddress?.address) === email)) return true;
         return false;
       });
-
       return { roomId: room.id, roomEmail: room.emailAddress, events: roomEvents };
     });
   } catch (err) {
@@ -120,25 +109,16 @@ export async function checkAvailability(msalInstance, account, roomEmail, start,
   try {
     const body = {
       schedules: [roomEmail],
-      startTime: {
-        dateTime: toLocalISOString(start),
-        timeZone: "America/Mexico_City",
-      },
-      endTime: {
-        dateTime: toLocalISOString(end),
-        timeZone: "America/Mexico_City",
-      },
+      startTime: { dateTime: toLocalISOString(start), timeZone: "America/Mexico_City" },
+      endTime:   { dateTime: toLocalISOString(end),   timeZone: "America/Mexico_City" },
       availabilityViewInterval: 30,
     };
-
     const data = await callGraph(msalInstance, account, "/me/calendar/getSchedule", {
       method: "POST",
       body: JSON.stringify(body),
     });
-
     const schedule = data.value?.[0];
     if (!schedule) return { available: false };
-
     const isFree = schedule.availabilityView?.split("").every((slot) => slot === "0");
     return { available: isFree, scheduleItems: schedule.scheduleItems || [] };
   } catch {
@@ -176,10 +156,27 @@ export async function createBooking(msalInstance, account, booking) {
     onlineMeetingProvider: "teamsForBusiness",
   };
 
-  return callGraph(msalInstance, account, "/me/events", {
+  // Crear el evento
+  const created = await callGraph(msalInstance, account, "/me/events", {
     method: "POST",
     body: JSON.stringify(event),
   });
+
+  // Obtener el evento completo con datos de Teams
+  if (created?.id) {
+    try {
+      const full = await callGraph(
+        msalInstance,
+        account,
+        `/me/events/${created.id}?$select=id,subject,onlineMeeting,onlineMeetingUrl`
+      );
+      return { ...created, onlineMeeting: full.onlineMeeting, onlineMeetingUrl: full.onlineMeetingUrl };
+    } catch {
+      return created;
+    }
+  }
+
+  return created;
 }
 
 export async function createComboBooking(msalInstance, account, booking) {
@@ -201,9 +198,7 @@ export async function createComboBooking(msalInstance, account, booking) {
       dateTime: typeof end === "string" ? end : toLocalISOString(end),
       timeZone: "America/Mexico_City",
     },
-    location: {
-      displayName: "Sala Magna (Tenacidad + Entusiasmo)",
-    },
+    location: { displayName: "Sala Magna (Tenacidad + Entusiasmo)" },
     attendees: [
       ...roomEmails.map((email, i) => ({
         emailAddress: { address: email, name: roomNames[i] || email },
@@ -214,16 +209,29 @@ export async function createComboBooking(msalInstance, account, booking) {
     onlineMeetingProvider: "teamsForBusiness",
   };
 
-  return callGraph(msalInstance, account, "/me/events", {
+  const created = await callGraph(msalInstance, account, "/me/events", {
     method: "POST",
     body: JSON.stringify(event),
   });
+
+  if (created?.id) {
+    try {
+      const full = await callGraph(
+        msalInstance,
+        account,
+        `/me/events/${created.id}?$select=id,subject,onlineMeeting,onlineMeetingUrl`
+      );
+      return { ...created, onlineMeeting: full.onlineMeeting, onlineMeetingUrl: full.onlineMeetingUrl };
+    } catch {
+      return created;
+    }
+  }
+
+  return created;
 }
 
 export async function cancelBooking(msalInstance, account, eventId) {
-  return callGraph(msalInstance, account, `/me/events/${eventId}`, {
-    method: "DELETE",
-  });
+  return callGraph(msalInstance, account, `/me/events/${eventId}`, { method: "DELETE" });
 }
 
 export async function updateBooking(msalInstance, account, eventId, booking) {
@@ -245,10 +253,7 @@ export async function updateBooking(msalInstance, account, eventId, booking) {
       dateTime: typeof end === "string" ? end : toLocalISOString(end),
       timeZone: "America/Mexico_City",
     },
-    location: {
-      displayName: roomName,
-      locationEmailAddress: roomEmail,
-    },
+    location: { displayName: roomName, locationEmailAddress: roomEmail },
     attendees: [
       { emailAddress: { address: roomEmail, name: roomName }, type: "resource" },
     ],
@@ -264,9 +269,6 @@ export async function getRoomStats(msalInstance, account, roomEmail, customStart
   const end = customEnd || new Date();
   const start = customStart || new Date(new Date().setDate(new Date().getDate() - 30));
 
-  const startStr = toLocalISOString(start);
-  const endStr = toLocalISOString(end);
-
   const NORMALIZE = {
     "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
     "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
@@ -277,38 +279,26 @@ export async function getRoomStats(msalInstance, account, roomEmail, customStart
 
   try {
     const data = await callGraph(
-      msalInstance,
-      account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
+      msalInstance, account,
+      `/me/calendarView?startDateTime=${toLocalISOString(start)}&endDateTime=${toLocalISOString(end)}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
       { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
     );
 
-    const allEvents = data.value || [];
-
-    const events = allEvents.filter(ev => {
+    const events = (data.value || []).filter(ev => {
       const loc = normalizeRoom(ev.location?.locationEmailAddress);
       if (loc === normalizedEmail) return true;
-      const locs = ev.locations || [];
-      if (locs.some(l => normalizeRoom(l.locationEmailAddress) === normalizedEmail)) return true;
-      const attendees = ev.attendees || [];
-      if (attendees.some(a => normalizeRoom(a.emailAddress?.address) === normalizedEmail)) return true;
+      if ((ev.locations || []).some(l => normalizeRoom(l.locationEmailAddress) === normalizedEmail)) return true;
+      if ((ev.attendees || []).some(a => normalizeRoom(a.emailAddress?.address) === normalizedEmail)) return true;
       return false;
     });
 
     let totalMinutes = 0;
-    events.forEach((ev) => {
-      const s = new Date(ev.start.dateTime);
-      const e = new Date(ev.end.dateTime);
-      totalMinutes += (e - s) / 60000;
-    });
-
-    const availableMinutes = 8 * 60 * 22;
-    const occupancyPct = Math.round((totalMinutes / availableMinutes) * 100);
+    events.forEach(ev => { totalMinutes += (new Date(ev.end.dateTime) - new Date(ev.start.dateTime)) / 60000; });
 
     return {
       totalBookings: events.length,
       totalHours: Math.round(totalMinutes / 60),
-      occupancyPct: Math.min(occupancyPct, 100),
+      occupancyPct: Math.min(Math.round((totalMinutes / (8 * 60 * 22)) * 100), 100),
     };
   } catch {
     return { totalBookings: 0, totalHours: 0, occupancyPct: 0 };
@@ -318,9 +308,6 @@ export async function getRoomStats(msalInstance, account, roomEmail, customStart
 export async function getMagnaStats(msalInstance, account, customStart, customEnd) {
   const end = customEnd || new Date();
   const start = customStart || new Date(new Date().setDate(new Date().getDate() - 30));
-
-  const startStr = toLocalISOString(start);
-  const endStr = toLocalISOString(end);
 
   const MAGNA_ROOMS = ["tenacidad@salasneto.com", "entusiasmo@salasneto.com"];
   const NORMALIZE = {
@@ -332,33 +319,23 @@ export async function getMagnaStats(msalInstance, account, customStart, customEn
 
   try {
     const data = await callGraph(
-      msalInstance,
-      account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
+      msalInstance, account,
+      `/me/calendarView?startDateTime=${toLocalISOString(start)}&endDateTime=${toLocalISOString(end)}&$select=id,subject,start,end,attendees,location,locations&$top=100&$orderby=start/dateTime`,
       { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
     );
 
-    const allEvents = data.value || [];
-
-    const magnaEvents = allEvents.filter(ev => {
+    const magnaEvents = (data.value || []).filter(ev => {
       const attendeeEmails = (ev.attendees || []).map(a => normalizeRoom(a.emailAddress?.address));
       return MAGNA_ROOMS.every(r => attendeeEmails.includes(r));
     });
 
     let totalMinutes = 0;
-    magnaEvents.forEach(ev => {
-      const s = new Date(ev.start.dateTime);
-      const e = new Date(ev.end.dateTime);
-      totalMinutes += (e - s) / 60000;
-    });
-
-    const availableMinutes = 8 * 60 * 22;
-    const occupancyPct = Math.round((totalMinutes / availableMinutes) * 100);
+    magnaEvents.forEach(ev => { totalMinutes += (new Date(ev.end.dateTime) - new Date(ev.start.dateTime)) / 60000; });
 
     return {
       totalBookings: magnaEvents.length,
       totalHours: Math.round(totalMinutes / 60),
-      occupancyPct: Math.min(occupancyPct, 100),
+      occupancyPct: Math.min(Math.round((totalMinutes / (8 * 60 * 22)) * 100), 100),
     };
   } catch {
     return { totalBookings: 0, totalHours: 0, occupancyPct: 0 };
@@ -368,23 +345,13 @@ export async function getMagnaStats(msalInstance, account, customStart, customEn
 export async function getTeamsRoomsLicenses(msalInstance, account) {
   try {
     const data = await callGraph(msalInstance, account, "/subscribedSkus");
-    const skus = data.value || [];
-
-    const teamsRoomSkus = skus.filter(s =>
+    const teamsRoomSkus = (data.value || []).filter(s =>
       s.skuPartNumber?.toLowerCase().includes("teams_rooms") ||
       s.skuPartNumber?.toLowerCase().includes("mtr")
     );
 
     if (teamsRoomSkus.length === 0) {
-      return [{
-        name: "Microsoft Teams Rooms Pro",
-        skuPartNumber: "Microsoft_Teams_Rooms_Pro",
-        total: 3,
-        consumed: 3,
-        available: 0,
-        expiryDate: null,
-        isMock: true,
-      }];
+      return [{ name: "Microsoft Teams Rooms Pro", skuPartNumber: "Microsoft_Teams_Rooms_Pro", total: 3, consumed: 3, available: 0, expiryDate: null, isMock: true }];
     }
 
     return teamsRoomSkus.map(s => ({
@@ -397,25 +364,13 @@ export async function getTeamsRoomsLicenses(msalInstance, account) {
       isMock: false,
     }));
   } catch {
-    return [{
-      name: "Microsoft Teams Rooms Pro",
-      skuPartNumber: "Microsoft_Teams_Rooms_Pro",
-      total: 3,
-      consumed: 3,
-      available: 0,
-      expiryDate: null,
-      isMock: true,
-    }];
+    return [{ name: "Microsoft Teams Rooms Pro", skuPartNumber: "Microsoft_Teams_Rooms_Pro", total: 3, consumed: 3, available: 0, expiryDate: null, isMock: true }];
   }
 }
 
 export async function getUsers(msalInstance, account) {
   try {
-    const data = await callGraph(
-      msalInstance,
-      account,
-      "/users?$select=id,displayName,userPrincipalName,accountEnabled,createdDateTime&$top=50"
-    );
+    const data = await callGraph(msalInstance, account, "/users?$select=id,displayName,userPrincipalName,accountEnabled,createdDateTime&$top=50");
     return data.value || [];
   } catch {
     return [];
@@ -424,11 +379,7 @@ export async function getUsers(msalInstance, account) {
 
 export async function getUserAuthMethods(msalInstance, account, userId) {
   try {
-    const data = await callGraph(
-      msalInstance,
-      account,
-      `/users/${userId}/authentication/methods`
-    );
+    const data = await callGraph(msalInstance, account, `/users/${userId}/authentication/methods`);
     return data.value || [];
   } catch (err) {
     throw new Error(err.message || "Error al obtener métodos de autenticación");
@@ -443,20 +394,10 @@ export async function deleteAuthMethod(msalInstance, account, userId, methodId, 
     "#microsoft.graph.softwareOathAuthenticationMethod": "softwareOathMethods",
   };
   const path = endpoints[methodType] || "microsoftAuthenticatorMethods";
-  return callGraph(
-    msalInstance,
-    account,
-    `/users/${userId}/authentication/${path}/${methodId}`,
-    { method: "DELETE" }
-  );
+  return callGraph(msalInstance, account, `/users/${userId}/authentication/${path}/${methodId}`, { method: "DELETE" });
 }
 
 export async function sendPasswordResetLink(msalInstance, account, userId) {
-  await callGraph(
-    msalInstance,
-    account,
-    `/users/${userId}/revokeSignInSessions`,
-    { method: "POST", body: JSON.stringify({}) }
-  );
+  await callGraph(msalInstance, account, `/users/${userId}/revokeSignInSessions`, { method: "POST", body: JSON.stringify({}) });
   return true;
 }
