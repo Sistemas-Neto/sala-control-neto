@@ -106,7 +106,7 @@ function Field({ label, value }) {
   );
 }
 
-export default function SolicitudesPanel() {
+export default function SolicitudesPanel({ onPendientesChange }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
   const isAdmin = account?.idTokenClaims?.groups?.includes(GROUP_ADMINS);
@@ -121,6 +121,8 @@ export default function SolicitudesPanel() {
     try {
       const data = await getSolicitudes(instance, account);
       setSolicitudes(data);
+      const count = data.filter(s => s.Estado === "Pendiente").length;
+      if (onPendientesChange) onPendientesChange(count);
     } catch (e) {
       console.error(e);
     }
