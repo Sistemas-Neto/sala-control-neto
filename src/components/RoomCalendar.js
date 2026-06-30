@@ -174,8 +174,10 @@ function WeekView({ rooms, events, selectedDate, onRefresh, onEditEvent }) {
                   }}
                     onClick={() => onEditEvent(ev, rooms.find(r => r.displayName === ev.roomName))}
                   >
-                    <div style={{ fontWeight: 600, lineHeight: 1.2 }}>{ev.subject || "(Sin asunto)"}</div>
-                    <div style={{ color: "#666", fontSize: 10 }}>{ev.roomName}</div>
+                    <div style={{ fontWeight: 600, lineHeight: 1.2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                      {format(localStart, "HH:mm")} {ev.subject || "(Sin asunto)"}
+                    </div>
+                    <div style={{ color: "#555", fontSize: 10, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>📍 {ev.roomName}</div>
                     <div style={{ color: "#888", fontSize: 10 }}>{format(localStart, "HH:mm")}–{format(localEnd, "HH:mm")}</div>
                   </div>
                 );
@@ -232,18 +234,25 @@ function MonthView({ rooms, events, selectedDate, onEditEvent }) {
                     color: isToday ? "#042C53" : "#222",
                     marginBottom: 4,
                   }}>{day}</div>
-                  {dayEvents.slice(0, 3).map((ev, j) => (
-                    <div key={j}
-                      onClick={() => onEditEvent(ev, rooms.find(r => r.displayName === ev.roomName))}
-                      style={{
-                        fontSize: 11, padding: "2px 5px", borderRadius: 4,
-                        marginBottom: 2, cursor: "pointer", overflow: "hidden",
-                        whiteSpace: "nowrap", textOverflow: "ellipsis",
-                        ...(isNow(ev) ? styles.eventNow : styles.eventFuture),
-                      }}>
-                      {ev.subject || "(Sin asunto)"}
-                    </div>
-                  ))}
+                  {dayEvents.slice(0, 3).map((ev, j) => {
+                    const localStart = toLocal(ev.start.dateTime);
+                    return (
+                      <div key={j}
+                        onClick={() => onEditEvent(ev, rooms.find(r => r.displayName === ev.roomName))}
+                        style={{
+                          fontSize: 11, padding: "3px 6px", borderRadius: 4,
+                          marginBottom: 3, cursor: "pointer",
+                          ...(isNow(ev) ? styles.eventNow : styles.eventFuture),
+                        }}>
+                        <div style={{ fontWeight: 600, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                          {format(localStart, "HH:mm")} {ev.subject || "(Sin asunto)"}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#555", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                          📍 {ev.roomName}
+                        </div>
+                      </div>
+                    );
+                  })}
                   {dayEvents.length > 3 && (
                     <div style={{ fontSize: 11, color: "#888" }}>+{dayEvents.length - 3} más</div>
                   )}
