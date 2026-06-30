@@ -342,7 +342,24 @@ export async function getMagnaStats(msalInstance, account, customStart, customEn
   }
 }
 
+// Fecha de vencimiento real de la suscripción (compra: 25/06/2026, 1 año de vigencia)
+const TEAMS_ROOMS_EXPIRY = "2027-06-25";
+
+function calcularDiasRestantes(expiryDateStr) {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const vencimiento = new Date(expiryDateStr + "T00:00:00");
+  const diffMs = vencimiento - hoy;
+  const dias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return dias;
+}
+
 export async function getTeamsRoomsLicenses(msalInstance, account) {
+  const diasRestantes = calcularDiasRestantes(TEAMS_ROOMS_EXPIRY);
+  const expiryLabel = new Date(TEAMS_ROOMS_EXPIRY + "T00:00:00").toLocaleDateString("es-MX", {
+    day: "2-digit", month: "long", year: "numeric"
+  });
+
   try {
     const data = await callGraph(msalInstance, account, "/subscribedSkus");
     const teamsRoomSkus = (data.value || []).filter(s =>
@@ -351,7 +368,17 @@ export async function getTeamsRoomsLicenses(msalInstance, account) {
     );
 
     if (teamsRoomSkus.length === 0) {
-      return [{ name: "Microsoft Teams Rooms Pro", skuPartNumber: "Microsoft_Teams_Rooms_Pro", total: 3, consumed: 3, available: 0, expiryDate: null, isMock: true }];
+      return [{
+        name: "Microsoft Teams Rooms Pro",
+        skuPartNumber: "Microsoft_Teams_Rooms_Pro",
+        total: 3,
+        consumed: 3,
+        available: 0,
+        expiryDate: TEAMS_ROOMS_EXPIRY,
+        expiryLabel,
+        diasRestantes,
+        isMock: true,
+      }];
     }
 
     return teamsRoomSkus.map(s => ({
@@ -360,11 +387,23 @@ export async function getTeamsRoomsLicenses(msalInstance, account) {
       total: s.prepaidUnits?.enabled || 0,
       consumed: s.consumedUnits || 0,
       available: (s.prepaidUnits?.enabled || 0) - (s.consumedUnits || 0),
-      expiryDate: null,
+      expiryDate: TEAMS_ROOMS_EXPIRY,
+      expiryLabel,
+      diasRestantes,
       isMock: false,
     }));
   } catch {
-    return [{ name: "Microsoft Teams Rooms Pro", skuPartNumber: "Microsoft_Teams_Rooms_Pro", total: 3, consumed: 3, available: 0, expiryDate: null, isMock: true }];
+    return [{
+      name: "Microsoft Teams Rooms Pro",
+      skuPartNumber: "Microsoft_Teams_Rooms_Pro",
+      total: 3,
+      consumed: 3,
+      available: 0,
+      expiryDate: TEAMS_ROOMS_EXPIRY,
+      expiryLabel,
+      diasRestantes,
+      isMock: true,
+    }];
   }
 }
 
