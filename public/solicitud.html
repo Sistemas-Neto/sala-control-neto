@@ -152,9 +152,11 @@
 </div>
 
 <script>
-// ── PIPEDREAM ENDPOINTS (reemplaza llamadas directas a Microsoft) ─────────
+// ── ENDPOINTS ───────────────────────────────────────────────────────────
+// Disponibilidad sigue en Pipedream (aún no migrado)
 var PD_DISPONIBILIDAD = "https://eoxe6q8npgjxfg2.m.pipedream.net";
-var PD_RESERVAR       = "https://eo7nc008wnu0d8e.m.pipedream.net";
+// Reservar ya migrado a n8n (servidor propio)
+var PD_RESERVAR       = "https://webhook.soyneto.com/webhook/sala-reservar";
 
 // ── CALENDARIO ───────────────────────────────────────────────────────────
 var hoy = new Date();
@@ -361,7 +363,7 @@ function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
   return div;
 }
 
-// ── ENVIAR RESERVA VÍA PIPEDREAM (sin CORS) ──────────────────────────────
+// ── ENVIAR RESERVA (n8n) ──────────────────────────────────────────────
 async function enviar(){
   var responsable=document.getElementById('responsable').value.trim();
   var correo=document.getElementById('correo').value.trim();
