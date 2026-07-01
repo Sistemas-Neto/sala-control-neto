@@ -147,7 +147,7 @@ export default function Dashboard() {
               {!loading && !error && (
                 <div style={s.bodyGrid}>
                   <div>
-                    <RoomCalendar rooms={rooms} events={events} onRefresh={refresh}/>
+                    <RoomCalendar rooms={rooms} events={events} onRefresh={refresh} selectedDate={selectedDate}/>
                   </div>
 
                   {/* Panel derecho */}
@@ -274,7 +274,7 @@ export default function Dashboard() {
           {activeView === "calendario" && (
             <div style={s.card}>
               <div style={s.cardTitle}>📅 Vista semanal</div>
-              {!loading && !error && <RoomCalendar rooms={rooms} events={events} onRefresh={refresh}/>}
+              {!loading && !error && <RoomCalendar rooms={rooms} events={events} onRefresh={refresh} selectedDate={selectedDate}/>}
             </div>
           )}
 
