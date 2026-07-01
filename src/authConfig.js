@@ -17,6 +17,8 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: [
     "Calendars.ReadWrite",
+    "Calendars.Read.Shared",
+    "Calendars.ReadWrite.Shared",
     "Place.Read.All",
     "User.Read",
     "User.ReadWrite.All",
@@ -31,6 +33,8 @@ export const loginRequest = {
 export const graphScopes = {
   scopes: [
     "Calendars.ReadWrite",
+    "Calendars.Read.Shared",
+    "Calendars.ReadWrite.Shared",
     "Place.Read.All",
     "User.Read",
     "User.ReadWrite.All",
