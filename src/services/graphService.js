@@ -68,33 +68,39 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
   const startStr = toLocalISOString(start);
   const endStr = toLocalISOString(end);
 
+  const NORMALIZE = {
+    "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
+    "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
+    "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
+  };
+  const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
+
   try {
+    // Consultar todos los eventos del usuario logueado (quien crea las reservas)
     const data = await callGraph(
       msalInstance,
       account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=100&$orderby=start/dateTime`,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=200&$orderby=start/dateTime`,
       { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
     );
 
     const allEvents = data.value || [];
 
-    const NORMALIZE = {
-      "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
-      "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
-      "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
-    };
-
-    const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
-
     return rooms.map((room) => {
       const email = normalizeRoom(room.emailAddress);
       const roomEvents = allEvents.filter(ev => {
+        // Buscar por location
         const loc = normalizeRoom(ev.location?.locationEmailAddress);
         if (loc === email) return true;
+        // Buscar en locations[]
         const locs = ev.locations || [];
         if (locs.some(l => normalizeRoom(l.locationEmailAddress) === email)) return true;
+        // Buscar en attendees (sala como resource)
         const attendees = ev.attendees || [];
         if (attendees.some(a => normalizeRoom(a.emailAddress?.address) === email)) return true;
+        // Buscar por displayName de location
+        const locName = ev.location?.displayName?.toLowerCase() || "";
+        if (locName.includes(room.displayName.toLowerCase().replace("sala ", ""))) return true;
         return false;
       });
       return { roomId: room.id, roomEmail: room.emailAddress, events: roomEvents };
