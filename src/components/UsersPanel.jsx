@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { getUsers, getUserAuthMethods, deleteAuthMethod, sendPasswordResetLink } from "../services/graphService";
-import { GROUP_ADMINS } from "../authConfig";
+import {
+  getUsers,
+  getUserAuthMethods,
+  deleteAuthMethod,
+  sendPasswordResetLink,
+  getUserGroupMembership,
+  addUserToGroup,
+  removeUserFromGroup,
+} from "../services/graphService";
+import { GROUP_ADMINS, GROUP_USUARIOS } from "../authConfig";
 
 const METHOD_LABELS = {
   "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod": { label: "Microsoft Authenticator", icon: "📱" },
@@ -15,19 +23,42 @@ const METHOD_LABELS = {
 export default function UsersPanel() {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
+  const myObjectId = account?.idTokenClaims?.oid;
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [authMethods, setAuthMethods] = useState([]);
   const [loadingMethods, setLoadingMethods] = useState(false);
-  const [actionStatus, setActionStatus] = useState({}); // { [userId]: { type, msg } }
+  const [actionStatus, setActionStatus] = useState({}); // { [key]: { type, msg } }
+
+  // Roles reales, leídos de los grupos de seguridad: { [userId]: { admin: bool, usuario: bool } }
+  const [roles, setRoles] = useState({});
+  const [loadingRoles, setLoadingRoles] = useState(true);
 
   useEffect(() => {
     getUsers(instance, account)
       .then(setUsers)
       .finally(() => setLoading(false));
   }, []);
+
+  // Una vez cargados los usuarios, revisar a qué grupos pertenece cada uno
+  useEffect(() => {
+    if (users.length === 0) {
+      setLoadingRoles(false);
+      return;
+    }
+    setLoadingRoles(true);
+    Promise.all(
+      users.map(async (u) => {
+        const groupIds = await getUserGroupMembership(instance, account, u.id, [GROUP_ADMINS, GROUP_USUARIOS]);
+        return [u.id, { admin: groupIds.includes(GROUP_ADMINS), usuario: groupIds.includes(GROUP_USUARIOS) }];
+      })
+    ).then((pairs) => {
+      setRoles(Object.fromEntries(pairs));
+      setLoadingRoles(false);
+    });
+  }, [users]);
 
   const handleSelectUser = async (user) => {
     if (selectedUser?.id === user.id) {
@@ -76,13 +107,40 @@ export default function UsersPanel() {
     setTimeout(() => setActionStatus(s => { const n = {...s}; delete n[key]; return n; }), 3000);
   };
 
-  const isAdmin = (user) => user.userPrincipalName?.includes("sistemasneto");
+  // Asignar / quitar un rol (pertenencia a grupo). roleKey: "admin" | "usuario"
+  const handleToggleRole = async (user, roleKey, groupId) => {
+    const currentlyIn = !!roles[user.id]?.[roleKey];
+    const roleLabel = roleKey === "admin" ? "Administrador" : "Usuario (aprobador)";
+
+    // Protección: evitar que te quites el rol de admin a ti mismo por error
+    if (roleKey === "admin" && currentlyIn && user.id === myObjectId) {
+      if (!window.confirm("⚠️ Estás a punto de quitarte el rol de Administrador A TI MISMO. Podrías perder acceso a esta sección. ¿Continuar de todas formas?")) return;
+    } else {
+      const accion = currentlyIn ? "quitar" : "asignar";
+      if (!window.confirm(`¿${accion === "quitar" ? "Quitar" : "Asignar"} el rol "${roleLabel}" ${accion === "quitar" ? "a" : "a"} ${user.displayName}?`)) return;
+    }
+
+    const key = `role_${user.id}_${roleKey}`;
+    setActionStatus(s => ({ ...s, [key]: { type: "loading", msg: "..." } }));
+    try {
+      if (currentlyIn) {
+        await removeUserFromGroup(instance, account, groupId, user.id);
+      } else {
+        await addUserToGroup(instance, account, groupId, user.id);
+      }
+      setRoles(r => ({ ...r, [user.id]: { ...r[user.id], [roleKey]: !currentlyIn } }));
+      setActionStatus(s => ({ ...s, [key]: { type: "success", msg: "✓" } }));
+    } catch (err) {
+      setActionStatus(s => ({ ...s, [key]: { type: "error", msg: "Error: " + err.message } }));
+    }
+    setTimeout(() => setActionStatus(s => { const n = {...s}; delete n[key]; return n; }), 3000);
+  };
 
   return (
     <div style={s.wrap}>
       <div style={s.header}>
         <div style={s.title}>👥 Usuarios con acceso</div>
-        <div style={s.subtitle}>Gestiona contraseñas y métodos de autenticación MFA</div>
+        <div style={s.subtitle}>Gestiona roles, contraseñas y métodos de autenticación MFA</div>
       </div>
 
       {loading ? (
@@ -94,6 +152,10 @@ export default function UsersPanel() {
             {users.map(user => {
               const status = actionStatus[user.id];
               const isSelected = selectedUser?.id === user.id;
+              const roleInfo = roles[user.id] || {};
+              const badgeLabel = roleInfo.admin ? "Admin" : roleInfo.usuario ? "Usuario" : "Sin rol";
+              const badgeStyle = roleInfo.admin ? s.bRed : roleInfo.usuario ? s.bGreen : s.bGray;
+
               return (
                 <div key={user.id} style={{ ...s.userCard, ...(isSelected ? s.userCardSelected : {}) }}>
                   <div style={s.userRow} onClick={() => handleSelectUser(user)}>
@@ -103,11 +165,38 @@ export default function UsersPanel() {
                       <div style={s.userEmail}>{user.userPrincipalName}</div>
                     </div>
                     <div style={s.userRight}>
-                      <span style={{ ...s.badge, ...(isAdmin(user) ? s.bRed : s.bGreen) }}>
-                        {isAdmin(user) ? "Admin" : "Usuario"}
+                      <span style={{ ...s.badge, ...badgeStyle }}>
+                        {loadingRoles ? "…" : badgeLabel}
                       </span>
                       <span style={{ ...s.dot, background: user.accountEnabled ? "#1D9E75" : "#aaa" }} title={user.accountEnabled ? "Activo" : "Deshabilitado"} />
                     </div>
+                  </div>
+
+                  {/* Control de roles */}
+                  <div style={s.rolesRow} onClick={e => e.stopPropagation()}>
+                    <span style={s.rolesLabel}>Rol:</span>
+                    <button
+                      style={{ ...s.rolePill, ...(roleInfo.admin ? s.rolePillAdminActive : {}) }}
+                      disabled={loadingRoles || actionStatus[`role_${user.id}_admin`]?.type === "loading"}
+                      onClick={() => handleToggleRole(user, "admin", GROUP_ADMINS)}
+                    >
+                      {roleInfo.admin ? "✓ Admin" : "+ Admin"}
+                    </button>
+                    <button
+                      style={{ ...s.rolePill, ...(roleInfo.usuario ? s.rolePillUsuarioActive : {}) }}
+                      disabled={loadingRoles || actionStatus[`role_${user.id}_usuario`]?.type === "loading"}
+                      onClick={() => handleToggleRole(user, "usuario", GROUP_USUARIOS)}
+                    >
+                      {roleInfo.usuario ? "✓ Usuario" : "+ Usuario"}
+                    </button>
+                    {(actionStatus[`role_${user.id}_admin`] || actionStatus[`role_${user.id}_usuario`]) && (
+                      <span style={{
+                        fontSize: 10,
+                        color: (actionStatus[`role_${user.id}_admin`]?.type === "error" || actionStatus[`role_${user.id}_usuario`]?.type === "error") ? "#A32D2D" : "#1D9E75",
+                      }}>
+                        {actionStatus[`role_${user.id}_admin`]?.msg || actionStatus[`role_${user.id}_usuario`]?.msg}
+                      </span>
+                    )}
                   </div>
 
                   {/* Acciones rápidas */}
@@ -127,7 +216,7 @@ export default function UsersPanel() {
                     </button>
                   </div>
 
-                  {/* Feedback de acción */}
+                  {/* Feedback de acción de reset */}
                   {status && (
                     <div style={{ ...s.feedback, ...(status.type === "error" ? s.feedbackError : status.type === "success" ? s.feedbackSuccess : s.feedbackLoading) }}>
                       {status.msg}
@@ -179,6 +268,13 @@ export default function UsersPanel() {
           <div style={s.infoPanel}>
             <div style={s.infoPanelTitle}>ℹ️ Guía de acciones</div>
             <div style={s.infoItem}>
+              <div style={s.infoIcon}>🏷️</div>
+              <div>
+                <div style={s.infoLabel}>Asignar / quitar rol</div>
+                <div style={s.infoDesc}><strong>Admin</strong> da acceso total (Usuarios, Configuración, aprobar solicitudes). <strong>Usuario</strong> permite aprobar/rechazar solicitudes de reserva sin el resto de permisos de administrador.</div>
+              </div>
+            </div>
+            <div style={s.infoItem}>
               <div style={s.infoIcon}>🔑</div>
               <div>
                 <div style={s.infoLabel}>Enviar link de reset</div>
@@ -196,7 +292,7 @@ export default function UsersPanel() {
               <div style={s.infoIcon}>⚠️</div>
               <div>
                 <div style={s.infoLabel}>Permisos requeridos</div>
-                <div style={s.infoDesc}>Estas acciones requieren <strong>UserAuthenticationMethod.ReadWrite.All</strong> con consentimiento de administrador en Azure AD.</div>
+                <div style={s.infoDesc}>Estas acciones requieren <strong>UserAuthenticationMethod.ReadWrite.All</strong> y <strong>GroupMember.ReadWrite.All</strong> con consentimiento de administrador en Azure AD.</div>
               </div>
             </div>
           </div>
@@ -225,7 +321,13 @@ const s = {
   badge: { fontSize: 10, padding: "2px 7px", borderRadius: 10, fontWeight: 500 },
   bRed: { background: "#FCEBEB", color: "#A32D2D" },
   bGreen: { background: "#E1F5EE", color: "#085041" },
+  bGray: { background: "#f0f0f0", color: "#888" },
   dot: { width: 8, height: 8, borderRadius: "50%", flexShrink: 0 },
+  rolesRow: { display: "flex", alignItems: "center", gap: 6, marginTop: 9, flexWrap: "wrap" },
+  rolesLabel: { fontSize: 11, color: "#888", marginRight: 2 },
+  rolePill: { padding: "3px 9px", borderRadius: 12, fontSize: 11, border: "0.5px solid #ddd", background: "#f8f8f8", color: "#666", cursor: "pointer" },
+  rolePillAdminActive: { border: "0.5px solid #E24B4A", background: "#FCEBEB", color: "#A32D2D", fontWeight: 500 },
+  rolePillUsuarioActive: { border: "0.5px solid #1D9E75", background: "#E1F5EE", color: "#085041", fontWeight: 500 },
   actions: { display: "flex", gap: 7, marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #f0f0f0" },
   btnReset: { flex: 1, padding: "6px 10px", border: "0.5px solid #B5D4F4", borderRadius: 7, fontSize: 11, background: "#E6F1FB", color: "#0C447C", cursor: "pointer", fontWeight: 500 },
   btnMfa: { flex: 1, padding: "6px 10px", border: "0.5px solid #ddd", borderRadius: 7, fontSize: 11, background: "#f8f8f8", color: "#555", cursor: "pointer" },
