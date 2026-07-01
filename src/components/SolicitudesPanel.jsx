@@ -16,7 +16,7 @@ const ESTADO_STYLE = {
   Rechazado: { background: "#FCEBEB", color: "#A32D2D" },
 };
 
-function DetalleModal({ sol, onClose, onAprobar, onRechazar, procesando, puedeAprobar }) {
+function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, procesando, puedeAprobar }) {
   const fecha = sol.HoraInicio
     ? new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
     : "—";
@@ -82,7 +82,7 @@ function DetalleModal({ sol, onClose, onAprobar, onRechazar, procesando, puedeAp
           <div style={{ padding: "14px 24px", borderTop: "0.5px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, background: "#f8f8f8" }}>
             <button
               disabled={procesando}
-              onClick={() => onRechazar(sol)}
+              onClick={() => onIniciarRechazo(sol)}
               style={{ padding: "8px 16px", borderRadius: 7, fontSize: 13, cursor: "pointer", border: "0.5px solid #E24B4A", background: "#fff", color: "#A32D2D" }}
             >✕ Rechazar</button>
             <button
@@ -106,6 +106,48 @@ function Field({ label, value }) {
   );
 }
 
+function RechazoModal({ sol, motivo, onMotivoChange, onCancel, onConfirmar, procesando }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={onCancel}>
+      <div style={{ background: "#fff", borderRadius: 12, width: 460, maxWidth: "95vw", boxShadow: "0 8px 40px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ background: "#A32D2D", padding: "16px 22px" }}>
+          <div style={{ fontSize: 11, color: "#FCEBEB", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>Rechazar solicitud</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "#fff" }}>{sol.Asunto || "(Sin asunto)"}</div>
+        </div>
+        <div style={{ padding: "20px 22px" }}>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 12 }}>
+            Esta acción notificará por correo a <strong>{sol.ResponsableDeLaSesi_x00f3_n}</strong> ({sol.correo}) que su solicitud fue rechazada.
+          </div>
+          <label style={{ fontSize: 11, color: "#888", fontWeight: 500, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6, display: "block" }}>
+            Motivo del rechazo (opcional)
+          </label>
+          <textarea
+            value={motivo}
+            onChange={e => onMotivoChange(e.target.value)}
+            placeholder="Ej. La sala ya está ocupada en ese horario, faltan datos, etc."
+            rows={4}
+            style={{ width: "100%", padding: "10px 12px", border: "0.5px solid #ddd", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+          />
+        </div>
+        <div style={{ padding: "14px 22px", borderTop: "0.5px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, background: "#f8f8f8" }}>
+          <button
+            disabled={procesando}
+            onClick={onCancel}
+            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 13, cursor: "pointer", border: "0.5px solid #ddd", background: "#fff", color: "#666" }}
+          >Cancelar</button>
+          <button
+            disabled={procesando}
+            onClick={onConfirmar}
+            style={{ padding: "8px 16px", borderRadius: 7, fontSize: 13, cursor: "pointer", border: "none", background: "#A32D2D", color: "#fff", fontWeight: 500 }}
+          >{procesando ? "Procesando..." : "✕ Confirmar rechazo"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SolicitudesPanel({ onPendientesChange }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
@@ -121,6 +163,8 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   const [procesando, setProcesando] = useState(null);
   const [filtro, setFiltro] = useState("Pendiente");
   const [detalle, setDetalle] = useState(null);
+  const [rechazoTarget, setRechazoTarget] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
 
   const cargar = async () => {
     setLoading(true);
@@ -214,12 +258,54 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     setProcesando(null);
   };
 
-  const rechazar = async (sol) => {
+  const iniciarRechazo = (sol) => {
     if (!puedeAprobar) return;
-    if (!window.confirm(`¿Rechazar la solicitud de ${sol.ResponsableDeLaSesi_x00f3_n}?`)) return;
+    setMotivoRechazo("");
+    setRechazoTarget(sol);
+  };
+
+  const cancelarRechazo = () => {
+    setRechazoTarget(null);
+    setMotivoRechazo("");
+  };
+
+  const confirmarRechazo = async () => {
+    const sol = rechazoTarget;
+    if (!sol || !puedeAprobar) return;
     setProcesando(sol.id);
     try {
       await actualizarEstado(instance, account, sol.id, "Rechazado");
+
+      // Enviar correo de notificación de rechazo
+      try {
+        const payload = {
+          correo:         sol.correo,
+          responsable:    sol.ResponsableDeLaSesi_x00f3_n,
+          asunto:         sol.Asunto,
+          sala:           sol.Sala,
+          fecha:          new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }),
+          horaInicio:     new Date(sol.HoraInicio).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+          horaFin:        new Date(sol.HoraFin).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+          asistentes:     sol.Asistentes,
+          motivo:         motivoRechazo.trim() || "Sin motivo especificado",
+        };
+
+        console.log("Enviando al webhook de correo de rechazo:", payload);
+
+        const r = await fetch("https://webhook.soyneto.com/webhook/sala-rechazar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const text = await r.text();
+        console.log("Respuesta webhook rechazo:", r.status, text);
+      } catch (errCorreo) {
+        console.error("Error enviando correo de rechazo:", errCorreo);
+      }
+
+      setRechazoTarget(null);
+      setMotivoRechazo("");
       setDetalle(null);
       await cargar();
     } catch (e) {
@@ -311,7 +397,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
                               >{procesando === sol.id ? "..." : "✓ Aprobar"}</button>
                               <button
                                 disabled={procesando === sol.id}
-                                onClick={() => rechazar(sol)}
+                                onClick={() => iniciarRechazo(sol)}
                                 style={{ padding: "4px 9px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "0.5px solid #E24B4A", background: "#fff", color: "#A32D2D" }}
                               >✕ Rechazar</button>
                             </div>
@@ -332,9 +418,20 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           sol={detalle}
           onClose={() => setDetalle(null)}
           onAprobar={aprobar}
-          onRechazar={rechazar}
+          onIniciarRechazo={iniciarRechazo}
           procesando={procesando === detalle?.id}
           puedeAprobar={puedeAprobar}
+        />
+      )}
+
+      {rechazoTarget && (
+        <RechazoModal
+          sol={rechazoTarget}
+          motivo={motivoRechazo}
+          onMotivoChange={setMotivoRechazo}
+          onCancel={cancelarRechazo}
+          onConfirmar={confirmarRechazo}
+          procesando={procesando === rechazoTarget.id}
         />
       )}
     </>
