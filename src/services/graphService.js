@@ -231,6 +231,16 @@ export async function cancelBooking(msalInstance, account, eventId) {
   return callGraph(msalInstance, account, `/me/events/${eventId}`, { method: "DELETE" });
 }
 
+/**
+ * Cancela una reserva borrando el evento directamente del calendario de LA SALA
+ * (en vez del calendario personal de quien lo creó). Esto funciona sin importar
+ * quién haya aprobado/creado la reserva originalmente, siempre que la cuenta que
+ * cancela tenga FullAccess + Calendars.ReadWrite.Shared sobre esa sala.
+ */
+export async function cancelBookingFromRoom(msalInstance, account, roomEmail, eventId) {
+  return callGraph(msalInstance, account, `/users/${encodeURIComponent(roomEmail)}/events/${eventId}`, { method: "DELETE" });
+}
+
 export async function updateBooking(msalInstance, account, eventId, booking) {
   const { subject, roomEmail, roomName, start, end, comments = "" } = booking;
 
