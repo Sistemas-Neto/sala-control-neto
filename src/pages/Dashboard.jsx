@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
-import * as XLSX from "xlsx"; // npm install xlsx
 import { useRooms } from "../hooks/useRooms";
 import RoomCalendar from "../components/RoomCalendar";
 import BookingModal from "../components/BookingModal";
@@ -139,19 +138,9 @@ export default function Dashboard() {
     return all.sort((a, b) => (a.Fecha + a["Hora inicio"]).localeCompare(b.Fecha + b["Hora inicio"]));
   };
 
-  const handleExportHistorialExcel = () => {
-    const rows = getHistorialRows();
-    if (rows.length === 0) {
-      alert("No hay reservas para exportar en el rango actualmente cargado.");
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Historial");
-    XLSX.writeFile(wb, `historial-reservas-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-  };
-
-  const handleExportHistorialCSV = () => {
+  // Excel abre archivos .csv sin problema, así que usamos el mismo generador
+  // para ambos botones y evitamos depender de una librería externa (xlsx).
+  const handleExportHistorial = () => {
     const rows = getHistorialRows();
     if (rows.length === 0) {
       alert("No hay reservas para exportar en el rango actualmente cargado.");
@@ -342,8 +331,8 @@ export default function Dashboard() {
               <div style={s.repRow}>
                 <div style={s.repName}>Historial completo de reservas</div>
                 <div style={s.dlBtns}>
-                  <button style={s.dlXl} onClick={handleExportHistorialExcel}>⬇ Excel</button>
-                  <button style={s.dlCsv} onClick={handleExportHistorialCSV}>⬇ CSV</button>
+                  <button style={s.dlXl} onClick={handleExportHistorial}>⬇ Excel</button>
+                  <button style={s.dlCsv} onClick={handleExportHistorial}>⬇ CSV</button>
                 </div>
               </div>
               {["Cancelaciones y no-shows","Reservas recurrentes"].map(r => (
