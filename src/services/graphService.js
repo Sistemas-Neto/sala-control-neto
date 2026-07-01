@@ -59,10 +59,21 @@ export async function getRoomEvents(msalInstance, account, roomEmail, start, end
   return [];
 }
 
-export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
-  const start = new Date(date);
+/**
+ * Carga los eventos de todas las salas dentro de un RANGO de fechas.
+ *
+ * Acepta dos formas de uso (compatibilidad hacia atrás):
+ *   getAllRoomsEvents(instance, account, rooms, singleDate)
+ *   getAllRoomsEvents(instance, account, rooms, startDate, endDate)
+ *
+ * Si solo se pasa un valor de fecha, se usa ese día completo (00:00–23:59),
+ * igual que antes. Si se pasan dos, se usa ese rango completo.
+ */
+export async function getAllRoomsEvents(msalInstance, account, rooms, startDate, endDate) {
+  const start = new Date(startDate);
   start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
+
+  const end = new Date(endDate || startDate);
   end.setHours(23, 59, 59, 999);
 
   const startStr = toLocalISOString(start);
@@ -77,10 +88,12 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
 
   try {
     // Consultar todos los eventos del usuario logueado (quien crea las reservas)
+    // dentro del rango solicitado. $top se sube porque el rango ahora puede
+    // cubrir semanas/meses completos en vez de un solo día.
     const data = await callGraph(
       msalInstance,
       account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=200&$orderby=start/dateTime`,
+      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=999&$orderby=start/dateTime`,
       { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
     );
 
