@@ -98,8 +98,9 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, date) {
         // Buscar en attendees (sala como resource)
         const attendees = ev.attendees || [];
         if (attendees.some(a => normalizeRoom(a.emailAddress?.address) === email)) return true;
-        // Buscar por displayName de location
+        // Buscar por displayName de location (ej: "Sala Practicidad")
         const locName = ev.location?.displayName?.toLowerCase() || "";
+        if (locName === room.displayName.toLowerCase()) return true;
         if (locName.includes(room.displayName.toLowerCase().replace("sala ", ""))) return true;
         return false;
       });
