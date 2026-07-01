@@ -60,14 +60,17 @@ export async function getRoomEvents(msalInstance, account, roomEmail, start, end
 }
 
 /**
- * Carga los eventos de todas las salas dentro de un RANGO de fechas.
+ * Carga los eventos de todas las salas dentro de un RANGO de fechas,
+ * consultando el calendario de CADA SALA directamente
+ * (/users/{roomEmail}/calendarView) en vez del calendario del usuario logueado.
+ *
+ * Esto requiere que el usuario tenga permiso "Reviewer" (o superior) sobre
+ * el calendario de cada sala en Exchange Online — ver grant-calendar-permissions.ps1.
+ * Así, TODAS las reservas de la sala aparecen sin importar quién las creó.
  *
  * Acepta dos formas de uso (compatibilidad hacia atrás):
  *   getAllRoomsEvents(instance, account, rooms, singleDate)
  *   getAllRoomsEvents(instance, account, rooms, startDate, endDate)
- *
- * Si solo se pasa un valor de fecha, se usa ese día completo (00:00–23:59),
- * igual que antes. Si se pasan dos, se usa ese rango completo.
  */
 export async function getAllRoomsEvents(msalInstance, account, rooms, startDate, endDate) {
   const start = new Date(startDate);
@@ -79,53 +82,24 @@ export async function getAllRoomsEvents(msalInstance, account, rooms, startDate,
   const startStr = toLocalISOString(start);
   const endStr = toLocalISOString(end);
 
-  const NORMALIZE = {
-    "salapracticidad@soyneto.onmicrosoft.com": "practicidad@salasneto.com",
-    "salatenacidad@soyneto.onmicrosoft.com":   "tenacidad@salasneto.com",
-    "salaentusiasmo@soyneto.onmicrosoft.com":  "entusiasmo@salasneto.com",
-  };
-  const normalizeRoom = (email) => NORMALIZE[email?.toLowerCase()] || email?.toLowerCase();
+  const results = await Promise.all(
+    rooms.map(async (room) => {
+      try {
+        const data = await callGraph(
+          msalInstance,
+          account,
+          `/users/${encodeURIComponent(room.emailAddress)}/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=999&$orderby=start/dateTime`,
+          { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
+        );
+        return { roomId: room.id, roomEmail: room.emailAddress, events: data.value || [] };
+      } catch (err) {
+        console.error(`Error cargando eventos de ${room.displayName}:`, err);
+        return { roomId: room.id, roomEmail: room.emailAddress, events: [] };
+      }
+    })
+  );
 
-  try {
-    // Consultar todos los eventos del usuario logueado (quien crea las reservas)
-    // dentro del rango solicitado. $top se sube porque el rango ahora puede
-    // cubrir semanas/meses completos en vez de un solo día.
-    const data = await callGraph(
-      msalInstance,
-      account,
-      `/me/calendarView?startDateTime=${startStr}&endDateTime=${endStr}&$select=id,subject,start,end,organizer,location,locations,attendees,bodyPreview&$top=999&$orderby=start/dateTime`,
-      { headers: { "Prefer": 'outlook.timezone="America/Mexico_City"' } }
-    );
-
-    const allEvents = data.value || [];
-
-    return rooms.map((room) => {
-      const email = normalizeRoom(room.emailAddress);
-      const roomEvents = allEvents.filter(ev => {
-        // Buscar por location
-        const loc = normalizeRoom(ev.location?.locationEmailAddress);
-        if (loc === email) return true;
-        // Buscar en locations[]
-        const locs = ev.locations || [];
-        if (locs.some(l => normalizeRoom(l.locationEmailAddress) === email)) return true;
-        // Buscar en attendees (sala como resource) — puede venir como emailAddress.address o address directo
-        const attendees = ev.attendees || [];
-        if (attendees.some(a => {
-          const addr = normalizeRoom(a.emailAddress?.address || a.address || "");
-          return addr === email;
-        })) return true;
-        // Buscar por displayName de location (ej: "Sala Practicidad")
-        const locName = ev.location?.displayName?.toLowerCase() || "";
-        if (locName === room.displayName.toLowerCase()) return true;
-        if (locName.includes(room.displayName.toLowerCase().replace("sala ", ""))) return true;
-        return false;
-      });
-      return { roomId: room.id, roomEmail: room.emailAddress, events: roomEvents };
-    });
-  } catch (err) {
-    console.error("Error cargando eventos:", err);
-    return rooms.map(room => ({ roomId: room.id, roomEmail: room.emailAddress, events: [] }));
-  }
+  return results;
 }
 
 export async function checkAvailability(msalInstance, account, roomEmail, start, end) {
@@ -462,4 +436,47 @@ export async function deleteAuthMethod(msalInstance, account, userId, methodId, 
 export async function sendPasswordResetLink(msalInstance, account, userId) {
   await callGraph(msalInstance, account, `/users/${userId}/revokeSignInSessions`, { method: "POST", body: JSON.stringify({}) });
   return true;
+}
+
+// ── Gestión de roles (pertenencia a grupos de seguridad) ────────────
+
+/**
+ * Revisa a cuáles de los groupIds dados pertenece un usuario.
+ * Devuelve un array con los IDs de los grupos a los que SÍ pertenece.
+ * Requiere GroupMember.Read.All / Directory.Read.All (ya delegados).
+ */
+export async function getUserGroupMembership(msalInstance, account, userId, groupIds) {
+  try {
+    const data = await callGraph(msalInstance, account, `/users/${userId}/checkMemberGroups`, {
+      method: "POST",
+      body: JSON.stringify({ groupIds }),
+    });
+    return data.value || [];
+  } catch (err) {
+    console.error("Error verificando grupos del usuario:", err);
+    return [];
+  }
+}
+
+/**
+ * Agrega un usuario a un grupo de seguridad.
+ * Requiere GroupMember.ReadWrite.All con consentimiento de administrador.
+ */
+export async function addUserToGroup(msalInstance, account, groupId, userId) {
+  return callGraph(msalInstance, account, `/groups/${groupId}/members/$ref`, {
+    method: "POST",
+    body: JSON.stringify({
+      "@odata.id": `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+    }),
+  });
+}
+
+/**
+ * Quita a un usuario de un grupo de seguridad.
+ * Requiere GroupMember.ReadWrite.All con consentimiento de administrador.
+ */
+export async function removeUserFromGroup(msalInstance, account, groupId, userId) {
+  return callGraph(msalInstance, account, `/groups/${groupId}/members/${userId}/$ref`, {
+    method: "DELETE",
+  });
 }
