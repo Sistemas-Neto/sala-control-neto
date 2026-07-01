@@ -13,7 +13,6 @@ export const msalConfig = {
     storeAuthStateInCookie: false,
   },
 };
-
 // Permisos que solicita la app al usuario
 export const loginRequest = {
   scopes: [
@@ -27,7 +26,6 @@ export const loginRequest = {
     "Sites.ReadWrite.All",
   ],
 };
-
 // Scopes para llamadas silenciosas a Graph API
 export const graphScopes = {
   scopes: [
@@ -41,14 +39,11 @@ export const graphScopes = {
     "Sites.ReadWrite.All",
   ],
 };
-
 // ── Grupos de seguridad ──────────────────────────────────────
 export const GROUP_ADMINS   = "c839bdc2-ff67-4411-a426-d1de3003acef";
 export const GROUP_USUARIOS = "bdd1d693-dbca-45de-84db-3366774dbaa4";
-
 // ── Room List ────────────────────────────────────────────────
 export const ROOM_LIST_ID = "c65b9968-0347-4bc1-a4c2-07fa2a2c712a";
-
 // ── Salas conocidas ──────────────────────────────────────────
 export const SALAS = [
   {
