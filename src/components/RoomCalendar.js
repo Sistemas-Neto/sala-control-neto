@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { cancelBooking } from "../services/graphService";
+import { cancelBookingFromRoom } from "../services/graphService";
 import { format, addDays, startOfWeek, startOfMonth, getDaysInMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import BookingModal from "./BookingModal";
@@ -39,71 +39,6 @@ function isSameDay(date1, date2) {
     date1.getFullYear() === date2.getFullYear() &&
     date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate()
-  );
-}
-
-// ── VISTA DÍA ──────────────────────────────────────────────
-function DayView({ rooms, events, selectedDate, onRefresh, onEditEvent }) {
-  const nowLocal = toLocal(new Date().toISOString());
-  const nowTop = (nowLocal.getHours() + nowLocal.getMinutes() / 60 - 7) * SLOT_HEIGHT;
-
-  const handleCancel = async (instance, account, eventId, subject) => {
-    if (!window.confirm(`¿Cancelar la reserva "${subject}"?`)) return;
-    try {
-      await cancelBooking(instance, account, eventId);
-      onRefresh();
-    } catch (err) {
-      alert("Error al cancelar: " + err.message);
-    }
-  };
-
-  const { instance, accounts } = useMsal ? { instance: null, accounts: [] } : { instance: null, accounts: [] };
-
-  return (
-    <div style={styles.scrollArea}>
-      <div style={styles.grid(rooms.length)}>
-        <div style={styles.timeCol}>
-          {HOURS.map((h) => (
-            <div key={h} style={styles.timeCell}>
-              {String(h).padStart(2, "0")}:00
-            </div>
-          ))}
-        </div>
-        {rooms.map((room) => {
-          const roomEvents = (events[room.emailAddress] || []).filter(ev =>
-            isSameDay(toLocal(ev.start.dateTime), selectedDate)
-          );
-          return (
-            <div key={room.id} style={styles.roomCol}>
-              {HOURS.map((h) => <div key={h} style={styles.hourLine} />)}
-              {nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && isSameDay(nowLocal, selectedDate) && (
-                <div style={{ ...styles.nowLine, top: nowTop }} />
-              )}
-              {roomEvents.map((ev) => {
-                const { top, height, localStart, localEnd } = eventToSlot(ev);
-                const now = isNow(ev);
-                const upcoming = isUpcoming(ev);
-                return (
-                  <div
-                    key={ev.id}
-                    style={{
-                      ...styles.event, top, height: height - 2, cursor: "pointer",
-                      ...(now ? styles.eventNow : upcoming ? styles.eventUpcoming : styles.eventFuture),
-                    }}
-                    onClick={() => onEditEvent(ev, room)}
-                    title="Clic para editar"
-                  >
-                    <div style={styles.eventSubject}>{ev.subject || "(Sin asunto)"}</div>
-                    <div style={styles.eventOrganizer}>{ev.organizer?.emailAddress?.name}</div>
-                    <div style={styles.eventTime}>{format(localStart, "HH:mm")} – {format(localEnd, "HH:mm")}</div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -283,10 +218,13 @@ export default function RoomCalendar({ rooms, events, onRefresh, selectedDate: p
     setTimeout(() => setRefreshing(false), 800);
   };
 
-  const handleCancel = async (eventId, subject) => {
+  // Cancela borrando el evento directamente del calendario DE LA SALA
+  // (no del calendario personal de quien lo creó), para que funcione
+  // sin importar quién haya aprobado/creado la reserva.
+  const handleCancel = async (eventId, subject, roomEmail) => {
     if (!window.confirm(`¿Cancelar la reserva "${subject}"?`)) return;
     try {
-      await cancelBooking(instance, account, eventId);
+      await cancelBookingFromRoom(instance, account, roomEmail, eventId);
       onRefresh();
     } catch (err) {
       alert("Error al cancelar: " + err.message);
@@ -387,7 +325,7 @@ export default function RoomCalendar({ rooms, events, onRefresh, selectedDate: p
                           <div style={styles.eventTime}>{format(localStart, "HH:mm")} – {format(localEnd, "HH:mm")}</div>
                           {!now && (
                             <button style={styles.cancelBtn}
-                              onClick={(e) => { e.stopPropagation(); handleCancel(ev.id, ev.subject); }}
+                              onClick={(e) => { e.stopPropagation(); handleCancel(ev.id, ev.subject, room.emailAddress); }}
                             >✕</button>
                           )}
                         </div>
