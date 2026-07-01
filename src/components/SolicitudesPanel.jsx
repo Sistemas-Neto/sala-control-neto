@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { getSolicitudes, actualizarEstado } from "../services/solicitudesService";
 import { createBooking, createComboBooking } from "../services/graphService";
-import { GROUP_ADMINS } from "../authConfig";
+import { GROUP_ADMINS, GROUP_USUARIOS } from "../authConfig";
 
 const SALAS_EMAIL = {
   "Sala Tenacidad":   "tenacidad@salasneto.com",
@@ -16,7 +16,7 @@ const ESTADO_STYLE = {
   Rechazado: { background: "#FCEBEB", color: "#A32D2D" },
 };
 
-function DetalleModal({ sol, onClose, onAprobar, onRechazar, procesando, isAdmin }) {
+function DetalleModal({ sol, onClose, onAprobar, onRechazar, procesando, puedeAprobar }) {
   const fecha = sol.HoraInicio
     ? new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
     : "—";
@@ -78,7 +78,7 @@ function DetalleModal({ sol, onClose, onAprobar, onRechazar, procesando, isAdmin
           </div>
         </div>
 
-        {isAdmin && sol.Estado === "Pendiente" && (
+        {puedeAprobar && sol.Estado === "Pendiente" && (
           <div style={{ padding: "14px 24px", borderTop: "0.5px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, background: "#f8f8f8" }}>
             <button
               disabled={procesando}
@@ -110,6 +110,12 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
   const isAdmin = account?.idTokenClaims?.groups?.includes(GROUP_ADMINS);
+  const isUsuarioAprobador = account?.idTokenClaims?.groups?.includes(GROUP_USUARIOS);
+  // Los miembros de "sala-usuarios" (ej. RH/capacitación) pueden aceptar/rechazar
+  // solicitudes igual que un admin, pero NO heredan el resto de permisos de
+  // administrador (Usuarios, Configuración, etc.) — eso sigue controlado por isAdmin.
+  const puedeAprobar = isAdmin || isUsuarioAprobador;
+
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(null);
@@ -136,7 +142,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   );
 
   const aprobar = async (sol) => {
-    if (!isAdmin) return;
+    if (!puedeAprobar) return;
     setProcesando(sol.id);
     try {
       let eventoTeams;
@@ -209,7 +215,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   };
 
   const rechazar = async (sol) => {
-    if (!isAdmin) return;
+    if (!puedeAprobar) return;
     if (!window.confirm(`¿Rechazar la solicitud de ${sol.ResponsableDeLaSesi_x00f3_n}?`)) return;
     setProcesando(sol.id);
     try {
@@ -254,7 +260,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: "0.5px solid #eee" }}>
-                  {["Responsable", "Área", "Compañía", "Asunto", "Sala", "Fecha", "Horario", "Asist.", "Estado", isAdmin ? "Acciones" : ""].map(h => (
+                  {["Responsable", "Área", "Compañía", "Asunto", "Sala", "Fecha", "Horario", "Asist.", "Estado", puedeAprobar ? "Acciones" : ""].map(h => (
                     <th key={h} style={{ textAlign: "left", padding: "8px 9px", fontSize: 13, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -294,7 +300,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
                           padding: "3px 8px", borderRadius: 10, fontWeight: 500, fontSize: 11
                         }}>{sol.Estado || "—"}</span>
                       </td>
-                      {isAdmin && (
+                      {puedeAprobar && (
                         <td style={{ padding: "9px 8px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                           {sol.Estado === "Pendiente" && (
                             <div style={{ display: "flex", gap: 5 }}>
@@ -328,7 +334,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           onAprobar={aprobar}
           onRechazar={rechazar}
           procesando={procesando === detalle?.id}
-          isAdmin={isAdmin}
+          puedeAprobar={puedeAprobar}
         />
       )}
     </>
