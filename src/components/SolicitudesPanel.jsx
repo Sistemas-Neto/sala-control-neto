@@ -292,7 +292,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
 
         console.log("Enviando al webhook de correo de rechazo:", payload);
 
-        const r = await fetch("https://webhook.soyneto.com/webhook/sala-rechazar", {
+        const r = await fetch("https://webhook.soyneto.com/webhook/ba184e6d-f69b-4d72-b615-6259f768697c", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
