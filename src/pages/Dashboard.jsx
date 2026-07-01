@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
+import * as XLSX from "xlsx"; // npm install xlsx
 import { useRooms } from "../hooks/useRooms";
 import RoomCalendar from "../components/RoomCalendar";
 import BookingModal from "../components/BookingModal";
@@ -11,6 +12,38 @@ import UsersPanel from "../components/UsersPanel";
 import SolicitudesPanel from "../components/SolicitudesPanel";
 import { getSolicitudes } from "../services/solicitudesService";
 import { GROUP_ADMINS } from "../authConfig";
+
+// ── Utilidades de exportación ───────────────────────────────
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function rowsToCSV(rows) {
+  if (rows.length === 0) return "";
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.join(","),
+    ...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(",")),
+  ];
+  // BOM para que Excel abra bien los acentos en UTF-8
+  return "\uFEFF" + lines.join("\n");
+}
 
 export default function Dashboard() {
   const { instance, accounts } = useMsal();
@@ -78,6 +111,54 @@ export default function Dashboard() {
       });
     });
     return all.sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime)).slice(0, 3);
+  };
+
+  // ── Historial completo de reservas: arma las filas a partir de rooms/events ──
+  const getHistorialRows = () => {
+    const now = new Date();
+    const all = [];
+    rooms.forEach((r) => {
+      const evs = events[r.emailAddress] || [];
+      evs.forEach((ev) => {
+        const start = new Date(ev.start.dateTime);
+        const end = new Date(ev.end.dateTime);
+        let estado = "Próxima";
+        if (start <= now && now <= end) estado = "En curso";
+        else if (end < now) estado = "Pasada";
+        all.push({
+          Sala: r.displayName,
+          Asunto: ev.subject || "(Sin asunto)",
+          Organizador: ev.organizer?.emailAddress?.name || "",
+          Fecha: format(start, "yyyy-MM-dd"),
+          "Hora inicio": format(start, "HH:mm"),
+          "Hora fin": format(end, "HH:mm"),
+          Estado: estado,
+        });
+      });
+    });
+    return all.sort((a, b) => (a.Fecha + a["Hora inicio"]).localeCompare(b.Fecha + b["Hora inicio"]));
+  };
+
+  const handleExportHistorialExcel = () => {
+    const rows = getHistorialRows();
+    if (rows.length === 0) {
+      alert("No hay reservas para exportar en el rango actualmente cargado.");
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Historial");
+    XLSX.writeFile(wb, `historial-reservas-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+  };
+
+  const handleExportHistorialCSV = () => {
+    const rows = getHistorialRows();
+    if (rows.length === 0) {
+      alert("No hay reservas para exportar en el rango actualmente cargado.");
+      return;
+    }
+    const csv = rowsToCSV(rows);
+    downloadFile(csv, `historial-reservas-${format(new Date(), "yyyy-MM-dd")}.csv`, "text/csv;charset=utf-8;");
   };
 
   return (
@@ -252,21 +333,31 @@ export default function Dashboard() {
                 <div key={r} style={s.repRow}>
                   <div style={s.repName}>{r}</div>
                   <div style={s.dlBtns}>
-                    <button style={s.dlXl}>⬇ Excel</button>
-                    <button style={s.dlPdf}>⬇ PDF</button>
+                    <button style={s.dlXl} disabled title="Próximamente">⬇ Excel</button>
+                    <button style={s.dlPdf} disabled title="Próximamente">⬇ PDF</button>
                   </div>
                 </div>
               ))}
               <div style={{...s.secTitle,marginTop:16}}>Historial de reservas</div>
-              {["Historial completo de reservas","Cancelaciones y no-shows","Reservas recurrentes"].map(r => (
+              <div style={s.repRow}>
+                <div style={s.repName}>Historial completo de reservas</div>
+                <div style={s.dlBtns}>
+                  <button style={s.dlXl} onClick={handleExportHistorialExcel}>⬇ Excel</button>
+                  <button style={s.dlCsv} onClick={handleExportHistorialCSV}>⬇ CSV</button>
+                </div>
+              </div>
+              {["Cancelaciones y no-shows","Reservas recurrentes"].map(r => (
                 <div key={r} style={s.repRow}>
                   <div style={s.repName}>{r}</div>
                   <div style={s.dlBtns}>
-                    <button style={s.dlXl}>⬇ Excel</button>
-                    <button style={s.dlCsv}>⬇ CSV</button>
+                    <button style={s.dlXl} disabled title="Próximamente">⬇ Excel</button>
+                    <button style={s.dlCsv} disabled title="Próximamente">⬇ CSV</button>
                   </div>
                 </div>
               ))}
+              <div style={{fontSize:12, color:"#888", marginTop:12}}>
+                Nota: el historial exporta las reservas del rango actualmente cargado en el Dashboard (mes visible). Los demás reportes aún no están implementados.
+              </div>
             </div>
           )}
 
