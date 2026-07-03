@@ -67,7 +67,28 @@
       <div><label class="section">Correo <span class="required">*</span></label><input id="correo" type="email" placeholder="correo@empresa.com"/></div>
     </div>
     <div class="grid-2">
-      <div><label class="section">Área <span class="required">*</span></label><input id="area" type="text" placeholder="Ej: Recursos Humanos"/></div>
+      <div><label class="section">Área <span class="required">*</span></label>
+        <select id="area">
+          <option value="">-- Selecciona --</option>
+          <option value="ABASTO">ABASTO</option>
+          <option value="ADMINISTRACION">ADMINISTRACION</option>
+          <option value="AUDITORIA">AUDITORIA</option>
+          <option value="CENTROS DE DISTRIBUCION">CENTROS DE DISTRIBUCION</option>
+          <option value="COMERCIAL">COMERCIAL</option>
+          <option value="DIGITALIZACION E INNOVACION">DIGITALIZACION E INNOVACION</option>
+          <option value="DIRECCION GENERAL">DIRECCION GENERAL</option>
+          <option value="EXPANSION">EXPANSION</option>
+          <option value="FINANZAS">FINANZAS</option>
+          <option value="LEGAL">LEGAL</option>
+          <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+          <option value="MERCADOTECNIA Y DESARROLLO DE PRODUCTO">MERCADOTECNIA Y DESARROLLO DE PRODUCTO</option>
+          <option value="NEGOCIOS NUEVOS SP">NEGOCIOS NUEVOS SP</option>
+          <option value="OPERACIONES">OPERACIONES</option>
+          <option value="RECURSOS HUMANOS">RECURSOS HUMANOS</option>
+          <option value="SISTEMAS">SISTEMAS</option>
+          <option value="VENTAS ESPECIALES">VENTAS ESPECIALES</option>
+        </select>
+      </div>
       <div><label class="section">Compañía <span class="required">*</span></label>
         <select id="compania">
           <option value="">-- Selecciona --</option>
@@ -138,7 +159,7 @@
       </div>
     </div>
 
-    <div><label class="section">Material o requerimientos adicionales</label><textarea id="requerimientos" placeholder="Ej: Proyector, sillas adicionales, café, pizarrón..." rows="3"></textarea></div>
+    <div><label class="section">Material o requerimientos adicionales</label><textarea id="requerimientos" placeholder="" rows="3"></textarea></div>
   </div>
 
   <div id="msg-global"></div>
@@ -148,6 +169,7 @@
       <div style="font-size:10px;color:#aaa;margin-top:2px;">La solicitud será revisada por el administrador</div>
     </div>
     <button class="btn-enviar" id="btn-enviar" onclick="enviar()">Enviar solicitud</button>
+    <button class="btn-enviar" id="btn-nueva" onclick="reiniciarFormulario()" style="display:none;">Generar nueva reserva</button>
   </div>
 </div>
 
@@ -365,7 +387,7 @@ function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
 async function enviar(){
   var responsable=document.getElementById('responsable').value.trim();
   var correo=document.getElementById('correo').value.trim();
-  var area=document.getElementById('area').value.trim();
+  var area=document.getElementById('area').value;
   var compania=document.getElementById('compania').value;
   var asunto=document.getElementById('asunto').value.trim();
   var asistentes=document.getElementById('asistentes').value.trim();
@@ -401,6 +423,7 @@ async function enviar(){
     document.getElementById('form-body').style.display='none';
     showGlobal('✓ Solicitud enviada correctamente. Recibirás confirmación en tu correo una vez que sea aprobada.','success');
     document.getElementById('btn-enviar').style.display='none';
+    document.getElementById('btn-nueva').style.display='inline-block';
   } catch(e){
     showGlobal('Error al enviar la solicitud. Por favor intenta de nuevo.','err');
     document.getElementById('btn-enviar').disabled=false;
@@ -414,6 +437,42 @@ function showGlobal(txt,tipo){
 
 function prevMes(){calMes--;if(calMes<0){calMes=11;calAnio--;}ocupadosPorFecha={};renderCal();precargarMes();}
 function nextMes(){calMes++;if(calMes>11){calMes=0;calAnio++;}ocupadosPorFecha={};renderCal();precargarMes();}
+
+// ── REINICIAR FORMULARIO (nueva reserva) ───────────────────────────────
+function reiniciarFormulario(){
+  document.getElementById('responsable').value='';
+  document.getElementById('correo').value='';
+  document.getElementById('area').value='';
+  document.getElementById('compania').value='';
+  document.getElementById('asunto').value='';
+  document.getElementById('asistentes').value='';
+  document.getElementById('requerimientos').value='';
+
+  fechaSeleccionada=null;
+  salaSeleccionada=null;
+  nAsistentes=0;
+  ocupadosPorFecha={};
+
+  document.getElementById('cal-sel-bar').style.display='none';
+  document.getElementById('horario-section').style.display='none';
+  document.getElementById('horario-content').style.display='none';
+  document.getElementById('dia-lleno-msg').style.display='none';
+  document.getElementById('salas-placeholder').style.display='block';
+  document.getElementById('sala-list').style.display='none';
+  document.getElementById('sala-list').innerHTML='';
+  document.getElementById('msg-sin-sala').style.display='none';
+
+  document.getElementById('msg-global').innerHTML='';
+  document.getElementById('form-body').style.display='flex';
+  document.getElementById('btn-enviar').style.display='inline-block';
+  document.getElementById('btn-enviar').disabled=false;
+  document.getElementById('btn-nueva').style.display='none';
+
+  var hoyNueva=new Date();
+  calAnio=hoyNueva.getFullYear();calMes=hoyNueva.getMonth();
+  renderCal();
+  precargarMes();
+}
 
 renderCal();
 precargarMes();
