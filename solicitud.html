@@ -59,7 +59,7 @@
   <div class="header">
     <div class="header-label">Universidad Neto — Campus principal</div>
     <div class="header-title">Solicitud de reserva</div>
-    <div class="header-sub">Lunes a viernes · 8:00 am – 5:00 pm</div>
+    <div class="header-sub">Lunes a jueves · 8:00 am – 5:00 pm &nbsp;|&nbsp; Viernes · 8:00 am – 3:00 pm</div>
   </div>
 
   <div class="body" id="form-body">
@@ -188,11 +188,25 @@ var nAsistentes = 0;
 var ocupadosPorFecha = {};
 var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-var HORAS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORAS_LV = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORAS_VI = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00'];
 var HORA_LABELS = {'08:00':'8:00 AM','08:30':'8:30 AM','09:00':'9:00 AM','09:30':'9:30 AM','10:00':'10:00 AM','10:30':'10:30 AM','11:00':'11:00 AM','11:30':'11:30 AM','12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM','13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM','15:00':'3:00 PM','15:30':'3:30 PM','16:00':'4:00 PM','16:30':'4:30 PM','17:00':'5:00 PM'};
-var HORAS_FIN_ALL = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORAS_FIN_LV = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+var HORAS_FIN_VI = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00'];
 var HORA_FIN_LABELS = {'08:30':'8:30 AM','09:00':'9:00 AM','09:30':'9:30 AM','10:00':'10:00 AM','10:30':'10:30 AM','11:00':'11:00 AM','11:30':'11:30 AM','12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM','13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM','15:00':'3:00 PM','15:30':'3:30 PM','16:00':'4:00 PM','16:30':'4:30 PM','17:00':'5:00 PM','18:00':'6:00 PM'};
 var SALAS = [{id:'tenacidad',nombre:'Sala Tenacidad',cap:35},{id:'practicidad',nombre:'Sala Practicidad',cap:20},{id:'entusiasmo',nombre:'Sala Entusiasmo',cap:35}];
+
+// ── HORARIOS SEGÚN EL DÍA (Lunes–Jueves: 8am–5pm · Viernes: 8am–3pm) ────
+function getDiaSemana(fStr){
+  var parts=fStr.split('-');
+  return new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2])).getDay();
+}
+function horasInicioDia(fStr){
+  return getDiaSemana(fStr)===5 ? HORAS_VI : HORAS_LV;
+}
+function horasFinDia(fStr){
+  return getDiaSemana(fStr)===5 ? HORAS_FIN_VI : HORAS_FIN_LV;
+}
 
 // ── FETCH DISPONIBILIDAD VÍA PIPEDREAM (sin CORS) ────────────────────────
 async function fetchOcupados(fStr) {
@@ -216,7 +230,8 @@ async function fetchOcupados(fStr) {
 function diaDisponible(fStr) {
   var ocp = ocupadosPorFecha[fStr];
   if (!ocp) return null;
-  return SALAS.some(function(s){ return ocp[s.id].length < HORAS.length; });
+  var horas = horasInicioDia(fStr);
+  return SALAS.some(function(s){ return ocp[s.id].length < horas.length; });
 }
 
 async function precargarMes() {
@@ -296,7 +311,7 @@ async function selectFecha(fStr, dv) {
   if(!hayDisp){document.getElementById('dia-lleno-msg').style.display='flex';return;}
   var sel=document.getElementById('hinicio');
   sel.innerHTML='<option value="">-- Selecciona --</option>';
-  HORAS.forEach(function(h){
+  horasInicioDia(fStr).forEach(function(h){
     var algunaLibre=SALAS.some(function(s){return ocp[s.id].indexOf(h)===-1;});
     if(algunaLibre){var o=document.createElement('option');o.value=h;o.textContent=HORA_LABELS[h];sel.appendChild(o);}
   });
@@ -308,8 +323,8 @@ function updateHoraFin(){
   var inicio=document.getElementById('hinicio').value;
   var sel=document.getElementById('hfin');
   sel.innerHTML='<option value="">-- Selecciona --</option>';
-  if(!inicio)return;
-  HORAS_FIN_ALL.forEach(function(h){if(h>inicio){var o=document.createElement('option');o.value=h;o.textContent=HORA_FIN_LABELS[h];sel.appendChild(o);}});
+  if(!inicio||!fechaSeleccionada)return;
+  horasFinDia(fechaSeleccionada).forEach(function(h){if(h>inicio){var o=document.createElement('option');o.value=h;o.textContent=HORA_FIN_LABELS[h];sel.appendChild(o);}});
 }
 
 function checkSalas(){
