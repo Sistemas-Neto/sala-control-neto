@@ -52,6 +52,29 @@
     .btn-enviar { padding: 12px 28px; background: #042C53; color: #E6F1FB; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
     .btn-enviar:disabled { opacity: .6; cursor: default; }
     #msg-global { margin: 0 32px 16px; }
+
+    /* ===== Modal de Términos y Condiciones ===== */
+    .tc-overlay{ display:none; position:fixed; inset:0; background:rgba(4,44,83,0.55); align-items:center; justify-content:center; z-index:9999; padding:20px; }
+    .tc-overlay.tc-open{ display:flex; }
+    .tc-modal{ background:#fff; width:100%; max-width:640px; max-height:85vh; border-radius:16px; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.25); overflow:hidden; }
+    .tc-header{ padding:24px 32px; background:#042C53; }
+    .tc-header .header-label{ margin-bottom:4px; }
+    .tc-header h2{ font-size:20px; font-weight:500; color:#fff; margin-bottom:4px; }
+    .tc-body{ padding:20px 32px; overflow-y:auto; font-size:13.5px; line-height:1.6; color:#333; flex:1; }
+    .tc-body h3{ font-size:13.5px; color:#042C53; margin:16px 0 6px; }
+    .tc-body h3:first-child{ margin-top:0; }
+    .tc-body p{ margin:0 0 6px; color:#444; }
+    .tc-footer{ padding:18px 32px; border-top:0.5px solid #eee; background:#f8f8f8; }
+    .tc-scroll-hint{ display:flex; align-items:center; gap:6px; font-size:12px; color:#A32D2D; background:#FCEBEB; border:0.5px solid #F09595; border-radius:8px; padding:8px 12px; margin-bottom:12px; }
+    .tc-scroll-hint.tc-hidden{ display:none; }
+    .tc-check{ display:flex; align-items:flex-start; gap:10px; font-size:13px; color:#333; margin-bottom:14px; }
+    .tc-check.tc-disabled{ opacity:.45; }
+    .tc-check input{ margin-top:3px; width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+    .tc-check input:disabled{ cursor:not-allowed; }
+    .tc-actions{ display:flex; justify-content:flex-end; gap:10px; }
+    .tc-btn-secondary{ background:#fff; border:0.5px solid #ddd; color:#444; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; }
+    .tc-btn-primary{ background:#042C53; border:none; color:#E6F1FB; padding:10px 20px; border-radius:8px; cursor:not-allowed; font-size:14px; font-weight:500; opacity:.5; }
+    .tc-btn-primary.tc-enabled{ cursor:pointer; opacity:1; }
   </style>
 </head>
 <body>
@@ -171,6 +194,80 @@
     </div>
     <button class="btn-enviar" id="btn-enviar" onclick="enviar()">Enviar solicitud</button>
     <button class="btn-enviar" id="btn-nueva" onclick="reiniciarFormulario()" style="display:none;">Generar nueva reserva</button>
+  </div>
+</div>
+
+<!-- ===== Modal de Términos y Condiciones ===== -->
+<div class="tc-overlay" id="tcOverlay">
+  <div class="tc-modal">
+    <div class="tc-header">
+      <div class="header-label">Campus Universidad Neto</div>
+      <h2>Reglamento de Uso de las Salas de Capacitación</h2>
+    </div>
+
+    <div class="tc-body" id="tcBody">
+      <p>Con el fin de garantizar el adecuado funcionamiento de las instalaciones y brindar un espacio seguro, ordenado y funcional para todos los usuarios, la persona responsable de la reserva acepta cumplir las siguientes condiciones de uso:</p>
+
+      <h3>1. Consumo de alimentos y bebidas</h3>
+      <p>No está permitido ingresar alimentos a las salas de capacitación. En caso de que, por la naturaleza del evento, sea necesario ofrecer alimentos o bebidas, deberá solicitarse autorización previa al equipo de Campus Universidad Neto. Al finalizar la sesión, el espacio deberá entregarse completamente limpio y los residuos deberán depositarse en los contenedores destinados para ello.</p>
+
+      <h3>2. Limpieza del espacio</h3>
+      <p>La sala deberá entregarse en las mismas condiciones de orden y limpieza en las que fue recibida. Es responsabilidad del grupo retirar cualquier material, basura o pertenencia al concluir la sesión. En caso de colocar materiales en los muros y/o ventanal, deberán retirarse por completo sin dejar restos o maltrato del espacio; no puede colocarse nada en la mampara.</p>
+
+      <h3>3. Cuidado de las instalaciones</h3>
+      <p>No está permitido colocar, pegar, perforar o sujetar materiales sobre mamparas, muros, cristales o cualquier otro elemento de las instalaciones, ya que podrían dañarse.</p>
+
+      <h3>4. Materiales y equipo</h3>
+      <p>En caso de requerir materiales o recursos adicionales para la sesión, estos deberán solicitarse con anticipación. Todo material o equipo facilitado por Campus Universidad Neto deberá devolverse al finalizar la actividad en las mismas condiciones en las que fue entregado.</p>
+
+      <h3>5. Niveles de ruido</h3>
+      <p>Durante el uso de las instalaciones deberá mantenerse un nivel de ruido adecuado, tanto en conversaciones como en el uso de equipos audiovisuales, procurando no afectar las actividades de otras áreas.</p>
+
+      <h3>6. Uso de áreas comunes</h3>
+      <p>No está permitido permanecer o realizar actividades en pasillos, accesos u otras áreas comunes, ya que forman parte de espacios de trabajo y circulación.</p>
+
+      <h3>7. Horario de uso</h3>
+      <p>El acceso y permanencia en las instalaciones únicamente estará permitido dentro del horario de operación del campus, sin opción a permanecer fuera de estas condiciones: Lunes a jueves de 8:00 a.m. a 5:00 p.m. y viernes de 8:00 a.m. a 3:00 p.m.</p>
+
+      <h3>8. Mobiliario</h3>
+      <p>No está permitido mover el mobiliario de las salas. Si la dinámica de la sesión requiere modificar la distribución del espacio, deberá solicitarse autorización previa al personal de Campus Universidad Neto.</p>
+
+      <h3>9. Sala asignada</h3>
+      <p>La sala asignada durante la reserva no podrá modificarse al momento de la llegada al campus, salvo autorización expresa del personal responsable.</p>
+
+      <h3>10. Responsabilidad del solicitante</h3>
+      <p>La persona que realiza la reserva será responsable del comportamiento de todos los asistentes durante su permanencia en las instalaciones, incluyendo salas, pasillos, sanitarios y demás áreas comunes. Asimismo, será responsable de asegurar el cumplimiento de las presentes condiciones de uso por parte de su grupo y de informar cualquier incidencia que ocurra durante el desarrollo de la actividad.</p>
+
+      <h3>11. Daños a instalaciones, mobiliario y equipo</h3>
+      <p>Cualquier daño ocasionado a las instalaciones, mobiliario, equipo o materiales durante el desarrollo de la actividad deberá ser reportado de inmediato al personal de Campus Universidad Neto. La persona responsable de la reserva será responsable de informar la incidencia y colaborar en el seguimiento correspondiente, independientemente de quién haya ocasionado el daño.</p>
+
+      <h3>12. Objetos olvidados</h3>
+      <p>Los objetos, materiales o pertenencias olvidados durante la sesión serán reportados a la persona responsable de la reserva, quien deberá gestionar su recolección. Campus Universidad Neto resguardará estos artículos por un periodo máximo de 7 días naturales. Transcurrido dicho plazo sin que sean recuperados, los objetos serán retirados y el campus no será responsable de su resguardo o recuperación posterior.</p>
+
+      <h3>13. Objetos de valor</h3>
+      <p>Campus Universidad Neto no se hace responsable por la pérdida, robo o extravío de objetos personales o de valor durante la permanencia en las instalaciones. Cada asistente será responsable del cuidado y resguardo de sus pertenencias.</p>
+
+      <h3>14. Incumplimiento</h3>
+      <p>El incumplimiento de cualquiera de las presentes condiciones de uso, así como cualquier conducta que afecte el correcto funcionamiento de las instalaciones o genere daños al mobiliario o equipo, podrá dar lugar a la suspensión o restricción de futuras reservas para el área responsable, así como a las medidas administrativas que Campus Universidad Neto considere pertinentes.</p>
+
+      <h3>Declaración de aceptación</h3>
+      <p>Al seleccionar la opción "Acepto", declaro haber leído y comprendido el presente Reglamento de Uso de las Salas de Capacitación de Campus Universidad Neto, y me comprometo a cumplirlo, así como a garantizar su cumplimiento por parte de los asistentes a la actividad bajo mi responsabilidad.</p>
+    </div>
+
+    <div class="tc-footer">
+      <div class="tc-scroll-hint" id="tcScrollHint">
+        <i class="ti ti-arrow-down" style="font-size:14px;"></i>
+        <span>Desplázate hasta el final del reglamento para poder aceptar.</span>
+      </div>
+      <label class="tc-check tc-disabled" id="tcCheckLabel">
+        <input type="checkbox" id="tcCheckbox" disabled>
+        <span>He leído y acepto los Términos y Condiciones de Uso de las Salas de Capacitación.</span>
+      </label>
+      <div class="tc-actions">
+        <button type="button" class="tc-btn-secondary" id="tcCancel">Cancelar</button>
+        <button type="button" class="tc-btn-primary" id="tcAccept" disabled>Aceptar y enviar solicitud</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -399,8 +496,24 @@ function crearCard(id,nombre,desc,libre,clickable,insuf,esMagna){
   return div;
 }
 
-// ── ENVIAR RESERVA (n8n) ──────────────────────────────────────────────
-async function enviar(){
+// ── VALIDAR Y ABRIR TÉRMINOS (paso previo al envío real) ────────────────
+function enviar(){
+  var responsable=document.getElementById('responsable').value.trim();
+  var correo=document.getElementById('correo').value.trim();
+  var area=document.getElementById('area').value;
+  var compania=document.getElementById('compania').value;
+  var asunto=document.getElementById('asunto').value.trim();
+  var asistentes=document.getElementById('asistentes').value.trim();
+  var hi=document.getElementById('hinicio').value;
+  var hf=document.getElementById('hfin').value;
+  if(!responsable||!correo||!area||!compania||!asunto||!asistentes||!fechaSeleccionada||!hi||!hf||!salaSeleccionada){
+    showGlobal('Por favor completa todos los campos obligatorios y selecciona una sala.','err');return;
+  }
+  abrirModalTerminos();
+}
+
+// ── ENVIAR RESERVA (n8n) — se ejecuta solo tras aceptar los términos ────
+async function enviarReservaFinal(){
   var responsable=document.getElementById('responsable').value.trim();
   var correo=document.getElementById('correo').value.trim();
   var area=document.getElementById('area').value;
@@ -410,9 +523,8 @@ async function enviar(){
   var hi=document.getElementById('hinicio').value;
   var hf=document.getElementById('hfin').value;
   var requerimientos=document.getElementById('requerimientos').value.trim();
-  if(!responsable||!correo||!area||!compania||!asunto||!asistentes||!fechaSeleccionada||!hi||!hf||!salaSeleccionada){
-    showGlobal('Por favor completa todos los campos obligatorios y selecciona una sala.','err');return;
-  }
+
+  cerrarModalTerminos();
   document.getElementById('btn-enviar').disabled=true;
   showGlobal('Enviando solicitud...','loading');
   var salaNames={tenacidad:'Sala Tenacidad',practicidad:'Sala Practicidad',entusiasmo:'Sala Entusiasmo',magna:'Sala Magna'};
@@ -432,7 +544,9 @@ async function enviar(){
         horaInicio:     fechaISO+'T'+hi+':00',
         horaFin:        fechaISO+'T'+hf+':00',
         sala:           salaNames[salaSeleccionada]||salaSeleccionada,
-        requerimientos: requerimientos
+        requerimientos: requerimientos,
+        terminosAceptados: true,
+        terminosFecha:  new Date().toISOString()
       })
     });
     if(!res.ok) throw new Error('Error al guardar');
@@ -453,6 +567,65 @@ function showGlobal(txt,tipo){
 
 function prevMes(){calMes--;if(calMes<0){calMes=11;calAnio--;}ocupadosPorFecha={};renderCal();precargarMes();}
 function nextMes(){calMes++;if(calMes>11){calMes=0;calAnio++;}ocupadosPorFecha={};renderCal();precargarMes();}
+
+// ── MODAL DE TÉRMINOS Y CONDICIONES ─────────────────────────────────────
+var tcOverlay    = document.getElementById('tcOverlay');
+var tcCheckbox   = document.getElementById('tcCheckbox');
+var tcCheckLabel = document.getElementById('tcCheckLabel');
+var tcAcceptBtn  = document.getElementById('tcAccept');
+var tcCancelBtn  = document.getElementById('tcCancel');
+var tcBody       = document.getElementById('tcBody');
+var tcScrollHint = document.getElementById('tcScrollHint');
+
+function tcHabilitarCheckbox(){
+  tcCheckbox.disabled = false;
+  tcCheckLabel.classList.remove('tc-disabled');
+  tcScrollHint.classList.add('tc-hidden');
+}
+
+function tcVerificarScroll(){
+  // Tolerancia de 8px para navegadores donde el redondeo no llega exacto al fondo
+  var llegoAlFinal = tcBody.scrollTop + tcBody.clientHeight >= tcBody.scrollHeight - 8;
+  if (llegoAlFinal) tcHabilitarCheckbox();
+}
+
+function abrirModalTerminos(){
+  tcCheckbox.checked = false;
+  tcCheckbox.disabled = true;
+  tcCheckLabel.classList.add('tc-disabled');
+  tcScrollHint.classList.remove('tc-hidden');
+  tcAcceptBtn.disabled = true;
+  tcAcceptBtn.classList.remove('tc-enabled');
+  tcBody.scrollTop = 0;
+  tcOverlay.classList.add('tc-open');
+  // Si el contenido ya cabe completo sin necesidad de scroll, habilita de una vez
+  requestAnimationFrame(function(){
+    if (tcBody.scrollHeight <= tcBody.clientHeight + 8) tcHabilitarCheckbox();
+  });
+}
+
+function cerrarModalTerminos(){
+  tcOverlay.classList.remove('tc-open');
+}
+
+tcBody.addEventListener('scroll', tcVerificarScroll);
+
+tcCheckbox.addEventListener('change', function(){
+  var habilitado = tcCheckbox.checked;
+  tcAcceptBtn.disabled = !habilitado;
+  tcAcceptBtn.classList.toggle('tc-enabled', habilitado);
+});
+
+tcAcceptBtn.addEventListener('click', function(){
+  if(!tcCheckbox.checked) return;
+  enviarReservaFinal();
+});
+
+tcCancelBtn.addEventListener('click', cerrarModalTerminos);
+
+tcOverlay.addEventListener('click', function(e){
+  if(e.target===tcOverlay) cerrarModalTerminos();
+});
 
 // ── REINICIAR FORMULARIO (nueva reserva) ───────────────────────────────
 function reiniciarFormulario(){
