@@ -17,6 +17,18 @@ const ESTADO_STYLE = {
   Cancelado: { background: "#F0F0F0", color: "#555555" },
 };
 
+// Muestra si el usuario aceptó el reglamento al momento de la solicitud.
+// Soporta que TerminosAceptados venga como boolean (columna Sí/No) o como
+// texto ("true"/"Sí"), y que TerminosFecha venga como fecha ISO de SharePoint.
+function formatearTerminos(sol) {
+  const aceptado = sol.TerminosAceptados === true || sol.TerminosAceptados === "true" || sol.TerminosAceptados === "Sí" || sol.TerminosAceptados === "Yes";
+  if (!aceptado) return { aceptado: false, texto: "No registrado" };
+  const fecha = sol.TerminosFecha
+    ? new Date(sol.TerminosFecha).toLocaleString("es-MX", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
+  return { aceptado: true, texto: fecha ? `Aceptó el ${fecha}` : "Aceptó (sin fecha registrada)" };
+}
+
 function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCancelacion, procesando, puedeAprobar }) {
   const fecha = sol.HoraInicio
     ? new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
@@ -27,6 +39,7 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
   const hf = sol.HoraFin
     ? new Date(sol.HoraFin).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
     : "—";
+  const terminos = formatearTerminos(sol);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -76,6 +89,18 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
             }}>
               {sol.RequerimientosAdicionales || "Sin requerimientos adicionales"}
             </div>
+          </div>
+          <div style={{ height: "0.5px", background: "#eee" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 9px", borderRadius: 10, fontWeight: 500, fontSize: 11,
+              background: terminos.aceptado ? "#E1F5EE" : "#F0F0F0",
+              color: terminos.aceptado ? "#085041" : "#888",
+            }}>
+              {terminos.aceptado ? "✓" : "—"} Términos y condiciones
+            </span>
+            <span style={{ fontSize: 12, color: "#888" }}>{terminos.texto}</span>
           </div>
         </div>
 
@@ -480,7 +505,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: "0.5px solid #eee" }}>
-                  {["Responsable", "Área", "Compañía", "Asunto", "Sala", "Fecha", "Horario", "Asist.", "Estado", puedeAprobar ? "Acciones" : ""].map(h => (
+                  {["Responsable", "Área", "Compañía", "Asunto", "Sala", "Fecha", "Horario", "Asist.", "Estado", "Términos", puedeAprobar ? "Acciones" : ""].map(h => (
                     <th key={h} style={{ textAlign: "left", padding: "8px 9px", fontSize: 13, fontWeight: 500, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -496,6 +521,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
                   const hf = sol.HoraFin
                     ? new Date(sol.HoraFin).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
                     : "—";
+                  const terminos = formatearTerminos(sol);
                   return (
                     <tr key={sol.id}
                       onClick={() => setDetalle(sol)}
@@ -519,6 +545,14 @@ export default function SolicitudesPanel({ onPendientesChange }) {
                           ...(ESTADO_STYLE[sol.Estado] || { background: "#f0f0f0", color: "#888" }),
                           padding: "3px 8px", borderRadius: 10, fontWeight: 500, fontSize: 11
                         }}>{sol.Estado || "—"}</span>
+                      </td>
+                      <td style={{ padding: "9px 8px", textAlign: "center" }} title={terminos.texto}>
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          width: 22, height: 22, borderRadius: "50%", fontSize: 12, fontWeight: 600,
+                          background: terminos.aceptado ? "#E1F5EE" : "#F0F0F0",
+                          color: terminos.aceptado ? "#085041" : "#aaa",
+                        }}>{terminos.aceptado ? "✓" : "—"}</span>
                       </td>
                       {puedeAprobar && (
                         <td style={{ padding: "9px 8px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
