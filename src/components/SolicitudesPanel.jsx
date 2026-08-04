@@ -3,20 +3,153 @@ import { useMsal } from "@azure/msal-react";
 import { getSolicitudes, actualizarEstado, actualizarCampos } from "../services/solicitudesService";
 import { createBooking, createComboBooking, cancelBooking } from "../services/graphService";
 import { GROUP_ADMINS, GROUP_USUARIOS } from "../authConfig";
-
 const SALAS_EMAIL = {
   "Sala Tenacidad":   "tenacidad@salasneto.com",
   "Sala Practicidad": "practicidad@salasneto.com",
   "Sala Entusiasmo":  "entusiasmo@salasneto.com",
 };
-
 const ESTADO_STYLE = {
   Pendiente: { background: "#FFF8E1", color: "#B45309" },
   Aprobado:  { background: "#E1F5EE", color: "#085041" },
   Rechazado: { background: "#FCEBEB", color: "#A32D2D" },
   Cancelado: { background: "#F0F0F0", color: "#555555" },
 };
-
+// ── Texto vigente del Reglamento de Uso — debe mantenerse igual al que se
+// muestra en el formulario público de solicitud (solicitud.html), para que
+// el comprobante descargable refleje exactamente lo que la persona aceptó.
+const REGLAMENTO_INTRO = "Con el fin de garantizar el adecuado funcionamiento de las instalaciones y brindar un espacio seguro, ordenado y funcional para todos los usuarios, la persona responsable de la reserva acepta cumplir las siguientes condiciones de uso:";
+const REGLAMENTO_SECCIONES = [
+  { titulo: "1. Consumo de alimentos", parrafos: [
+    "No está permitido ingresar alimentos a las salas de capacitación. Únicamente podrán consumirse los insumos proporcionados por Campus Universidad Neto.",
+    "Al finalizar la sesión, el espacio deberá entregarse limpio y todos los residuos deberán depositarse en los contenedores correspondientes.",
+    "En caso de que, por la naturaleza del evento, sea necesario ofrecer alimentos o bebidas, deberá solicitarse autorización previa. Su consumo deberá realizarse únicamente en el pasillo de acceso al Campus.",
+  ]},
+  { titulo: "2. Limpieza del espacio", parrafos: [
+    "La sala deberá entregarse en las mismas condiciones de orden y limpieza en las que fue recibida.",
+    "Es responsabilidad del grupo retirar cualquier material, basura o pertenencia al concluir la sesión.",
+    "En caso de colocar materiales en los muros y/o ventanal, deberán retirarse por completo sin dejar restos o maltrato del espacio; no puede colocarse nada en la mampara.",
+  ]},
+  { titulo: "3. Cuidado de las instalaciones", parrafos: [
+    "No está permitido colocar, pegar, perforar o sujetar materiales sobre mamparas, muros, cristales o cualquier otro elemento de las instalaciones, ya que podrían dañarse.",
+  ]},
+  { titulo: "4. Materiales y equipo", parrafos: [
+    "En caso de requerir materiales o recursos adicionales para la sesión, estos deberán solicitarse con anticipación.",
+    "Todo material o equipo facilitado por Campus Universidad Neto deberá devolverse al finalizar la actividad en las mismas condiciones en las que fue entregado.",
+  ]},
+  { titulo: "5. Niveles de ruido", parrafos: [
+    "Durante el uso de las instalaciones deberá mantenerse un nivel de ruido adecuado, tanto en conversaciones como en el uso de equipos audiovisuales, dentro y fuera de las salas, procurando no afectar las actividades de otras áreas.",
+  ]},
+  { titulo: "6. Uso de áreas comunes", parrafos: [
+    "No está permitido permanecer o realizar actividades en pasillos, accesos u otras áreas comunes, ya que forman parte de espacios de trabajo y circulación.",
+  ]},
+  { titulo: "7. Horario de uso", parrafos: [
+    "El acceso y permanencia en las instalaciones únicamente estará permitido dentro del horario de operación del campus, sin opción a permanecer fuera de estas condiciones: Lunes a jueves de 8:00 a.m. a 5:00 p.m. y viernes de 8:00 a.m. a 3:00 p.m.",
+  ]},
+  { titulo: "8. Mobiliario", parrafos: [
+    "No está permitido mover el mobiliario de las salas.",
+    "Si la dinámica de la sesión requiere modificar la distribución del espacio, deberá solicitarse autorización previa al personal de Campus Universidad Neto.",
+  ]},
+  { titulo: "9. Sala asignada", parrafos: [
+    "La sala asignada durante la reserva no podrá modificarse al momento de la llegada al campus, salvo autorización expresa del personal responsable.",
+  ]},
+  { titulo: "10. Responsabilidad del solicitante", parrafos: [
+    "La persona que realiza la reserva será responsable del comportamiento de todos los asistentes durante su permanencia en las instalaciones, incluyendo salas, pasillos, sanitarios y demás áreas comunes.",
+    "Asimismo, será responsable de asegurar el cumplimiento de las presentes condiciones de uso por parte de su grupo y de informar cualquier incidencia que ocurra durante el desarrollo de la actividad.",
+  ]},
+  { titulo: "11. Daños a instalaciones, mobiliario y equipo", parrafos: [
+    "Cualquier daño ocasionado a las instalaciones, mobiliario, equipo o materiales durante el desarrollo de la actividad deberá ser reportado de inmediato al personal de Campus Universidad Neto.",
+    "La persona responsable de la reserva será responsable de informar la incidencia y colaborar en el seguimiento correspondiente, independientemente de quién haya ocasionado el daño.",
+  ]},
+  { titulo: "12. Objetos de valor", parrafos: [
+    "Campus Universidad Neto no se hace responsable por la pérdida, robo o extravío de objetos personales o de valor durante la permanencia en las instalaciones.",
+    "Cada asistente será responsable del cuidado y resguardo de sus pertenencias.",
+  ]},
+  { titulo: "13. Objetos olvidados", parrafos: [
+    "Los objetos, materiales o pertenencias olvidados durante la sesión serán reportados a la persona responsable de la reserva, quien deberá gestionar su recolección.",
+    "Campus Universidad Neto resguardará estos artículos por un periodo máximo de 7 días naturales. Transcurrido dicho plazo sin que sean recuperados, los objetos serán retirados y el campus no será responsable de su resguardo o recuperación posterior.",
+  ]},
+  { titulo: "14. Incumplimiento", parrafos: [
+    "El incumplimiento de cualquiera de las presentes condiciones de uso, así como cualquier conducta que afecte el correcto funcionamiento de las instalaciones o genere daños al mobiliario o equipo, podrá dar lugar a la suspensión o restricción de futuras reservas para el área responsable, así como a las medidas administrativas que Campus Universidad Neto considere pertinentes.",
+  ]},
+  { titulo: "15. Estacionamiento", parrafos: [
+    "Las instalaciones de Campus Universidad Neto no cuentan con servicio de estacionamiento para colaboradores, proveedores o asistentes a las sesiones.",
+    "El estacionamiento ubicado en el inmueble es de uso exclusivo para clientes de la tienda, por lo que no está permitido utilizarlo durante la permanencia en el campus.",
+    "En caso de acudir en vehículo particular, los asistentes deberán utilizar los estacionamientos o espacios públicos disponibles en los alrededores, bajo su propia responsabilidad.",
+  ]},
+];
+const REGLAMENTO_DECLARACION = "Al seleccionar la opción \"Acepto\", declaró haber leído y comprendido el presente Reglamento Campus Universidad Neto, y se comprometió a cumplirlo, así como a garantizar su cumplimiento por parte de los asistentes a la actividad bajo su responsabilidad.";
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+// Genera el HTML autocontenido del comprobante de aceptación (con estilos
+// listos para impresión), para que quede un registro descargable de qué
+// reglamento aceptó cada solicitante y cuándo.
+function generarComprobanteHTML(sol, terminos, fecha, hi, hf) {
+  const seccionesHtml = REGLAMENTO_SECCIONES.map(s => `
+    <h3>${escapeHtml(s.titulo)}</h3>
+    ${s.parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("\n")}
+  `).join("\n");
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Comprobante de aceptación — ${escapeHtml(sol.Asunto || "Solicitud")}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color:#222; margin:0; padding:40px; background:#fff; }
+  .header { background:#042C53; color:#fff; padding:24px 32px; border-radius:10px; margin-bottom:24px; }
+  .header .label { font-size:11px; color:#85B7EB; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+  .header h1 { font-size:20px; font-weight:500; margin:0 0 4px; }
+  .badge-ok { display:inline-block; margin-top:8px; background:#E1F5EE; color:#085041; font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+  .field { font-size:13px; }
+  .field .lbl { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
+  .field .val { color:#222; font-weight:500; }
+  .divider { height:1px; background:#eee; margin:20px 0; }
+  h2.reglamento-title { font-size:16px; color:#042C53; margin-bottom:10px; }
+  h3 { font-size:13.5px; color:#042C53; margin:16px 0 6px; }
+  p { font-size:13px; line-height:1.6; color:#444; margin:0 0 6px; }
+  .declaracion { margin-top:20px; padding:14px 16px; background:#f8f8f8; border-radius:8px; font-size:12.5px; color:#555; }
+  .footer-note { margin-top:24px; font-size:11px; color:#aaa; text-align:center; }
+  @media print { body { padding:20px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="label">Campus Universidad Neto</div>
+    <h1>Comprobante de aceptación del Reglamento</h1>
+    <span class="badge-ok">✓ ${escapeHtml(terminos.texto)}</span>
+  </div>
+  <div class="grid">
+    <div class="field"><div class="lbl">Responsable</div><div class="val">${escapeHtml(sol.ResponsableDeLaSesi_x00f3_n)}</div></div>
+    <div class="field"><div class="lbl">Correo</div><div class="val">${escapeHtml(sol.correo)}</div></div>
+    <div class="field"><div class="lbl">Área</div><div class="val">${escapeHtml(sol._x00c1_rea)}</div></div>
+    <div class="field"><div class="lbl">Compañía</div><div class="val">${escapeHtml(sol.Compa_x00f1_ia)}</div></div>
+    <div class="field"><div class="lbl">Sala solicitada</div><div class="val">${escapeHtml(sol.Sala)}</div></div>
+    <div class="field"><div class="lbl">Asunto</div><div class="val">${escapeHtml(sol.Asunto)}</div></div>
+    <div class="field"><div class="lbl">Fecha de la sesión</div><div class="val">${escapeHtml(fecha)}</div></div>
+    <div class="field"><div class="lbl">Horario</div><div class="val">${escapeHtml(hi)} – ${escapeHtml(hf)}</div></div>
+  </div>
+  <div class="divider"></div>
+  <h2 class="reglamento-title">Reglamento Campus Universidad Neto</h2>
+  <p>${escapeHtml(REGLAMENTO_INTRO)}</p>
+  ${seccionesHtml}
+  <div class="declaracion">${escapeHtml(REGLAMENTO_DECLARACION)}</div>
+  <div class="footer-note">Generado desde el panel de Solicitudes de reserva · Universidad Neto</div>
+</body>
+</html>`;
+}
+function downloadHTML(content, filename) {
+  const blob = new Blob([content], { type: "text/html;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 // Muestra si el usuario aceptó el reglamento al momento de la solicitud.
 // Soporta que TerminosAceptados venga como boolean (columna Sí/No) o como
 // texto ("true"/"Sí"), y que TerminosFecha venga como fecha ISO de SharePoint.
@@ -28,7 +161,6 @@ function formatearTerminos(sol) {
     : null;
   return { aceptado: true, texto: fecha ? `Aceptó el ${fecha}` : "Aceptó (sin fecha registrada)" };
 }
-
 function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCancelacion, procesando, puedeAprobar }) {
   const fecha = sol.HoraInicio
     ? new Date(sol.HoraInicio).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
@@ -40,7 +172,11 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
     ? new Date(sol.HoraFin).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
     : "—";
   const terminos = formatearTerminos(sol);
-
+  const handleDescargarComprobante = () => {
+    const html = generarComprobanteHTML(sol, terminos, fecha, hi, hf);
+    const slug = (sol.ResponsableDeLaSesi_x00f3_n || "solicitud").trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    downloadHTML(html, `comprobante-terminos-${slug}-${sol.id}.html`);
+  };
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={onClose}>
@@ -59,7 +195,6 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#85B7EB", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
         </div>
-
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Responsable" value={sol.ResponsableDeLaSesi_x00f3_n} />
@@ -91,7 +226,7 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
             </div>
           </div>
           <div style={{ height: "0.5px", background: "#eee" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               padding: "3px 9px", borderRadius: 10, fontWeight: 500, fontSize: 11,
@@ -101,9 +236,14 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
               {terminos.aceptado ? "✓" : "—"} Términos y condiciones
             </span>
             <span style={{ fontSize: 12, color: "#888" }}>{terminos.texto}</span>
+            {terminos.aceptado && (
+              <button
+                onClick={handleDescargarComprobante}
+                style={{ marginLeft: "auto", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "0.5px solid #ddd", background: "#fff", color: "#185FA5" }}
+              >⬇ Descargar comprobante</button>
+            )}
           </div>
         </div>
-
         {puedeAprobar && sol.Estado === "Pendiente" && (
           <div style={{ padding: "14px 24px", borderTop: "0.5px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, background: "#f8f8f8" }}>
             <button
@@ -118,7 +258,6 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
             >{procesando ? "Procesando..." : "✓ Aprobar solicitud"}</button>
           </div>
         )}
-
         {puedeAprobar && sol.Estado === "Aprobado" && (
           <div style={{ padding: "14px 24px", borderTop: "0.5px solid #eee", display: "flex", justifyContent: "flex-end", gap: 8, background: "#f8f8f8" }}>
             <button
@@ -132,7 +271,6 @@ function DetalleModal({ sol, onClose, onAprobar, onIniciarRechazo, onIniciarCanc
     </div>
   );
 }
-
 function CancelacionModal({ sol, motivo, onMotivoChange, onCancel, onConfirmar, procesando }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -174,7 +312,6 @@ function CancelacionModal({ sol, motivo, onMotivoChange, onCancel, onConfirmar, 
     </div>
   );
 }
-
 function Field({ label, value }) {
   return (
     <div>
@@ -183,7 +320,6 @@ function Field({ label, value }) {
     </div>
   );
 }
-
 function RechazoModal({ sol, motivo, onMotivoChange, onCancel, onConfirmar, procesando }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -225,7 +361,6 @@ function RechazoModal({ sol, motivo, onMotivoChange, onCancel, onConfirmar, proc
     </div>
   );
 }
-
 export default function SolicitudesPanel({ onPendientesChange }) {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
@@ -235,7 +370,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   // solicitudes igual que un admin, pero NO heredan el resto de permisos de
   // administrador (Usuarios, Configuración, etc.) — eso sigue controlado por isAdmin.
   const puedeAprobar = isAdmin || isUsuarioAprobador;
-
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(null);
@@ -245,7 +379,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
   const [motivoRechazo, setMotivoRechazo] = useState("");
   const [cancelacionTarget, setCancelacionTarget] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
-
   const cargar = async () => {
     setLoading(true);
     try {
@@ -258,19 +391,15 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     }
     setLoading(false);
   };
-
   useEffect(() => { cargar(); }, []);
-
   const filtradas = solicitudes.filter(s =>
     filtro === "Todas" ? true : s.Estado === filtro
   );
-
   const aprobar = async (sol) => {
     if (!puedeAprobar) return;
     setProcesando(sol.id);
     try {
       let eventoTeams;
-
       if (sol.Sala === "Sala Magna") {
         eventoTeams = await createComboBooking(instance, account, {
           subject:    sol.Asunto,
@@ -290,19 +419,15 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           comments:  sol.RequerimientosAdicionales || "",
         });
       }
-
       console.log("Evento Teams creado:", eventoTeams);
-
       const teamsLink = eventoTeams?.onlineMeeting?.joinUrl || "";
       const teamsMeetingId = eventoTeams?.onlineMeeting?.conferenceId || "";
       const teamsPasscode = eventoTeams?.onlineMeeting?.tollFreeNumbers?.[0]?.tollFreePhoneNumbers?.[0] || "";
-
       await actualizarCampos(instance, account, sol.id, {
         Estado: "Aprobado",
         IdEvento: eventoTeams?.id || "",
         OrganizadorEmail: account?.username || "",
       });
-
       // Enviar correo de confirmación con datos de Teams
       try {
         const payload = {
@@ -319,21 +444,17 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           teamsMeetingId,
           teamsPasscode,
         };
-
         console.log("Enviando al webhook de correo:", payload);
-
         const r = await fetch("https://webhook.soyneto.com/webhook/sala-aprobar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-
         const text = await r.text();
         console.log("Respuesta webhook correo:", r.status, text);
       } catch (errCorreo) {
         console.error("Error enviando correo de confirmación:", errCorreo);
       }
-
       setDetalle(null);
       await cargar();
     } catch (e) {
@@ -341,25 +462,21 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     }
     setProcesando(null);
   };
-
   const iniciarRechazo = (sol) => {
     if (!puedeAprobar) return;
     setMotivoRechazo("");
     setRechazoTarget(sol);
   };
-
   const cancelarRechazo = () => {
     setRechazoTarget(null);
     setMotivoRechazo("");
   };
-
   const confirmarRechazo = async () => {
     const sol = rechazoTarget;
     if (!sol || !puedeAprobar) return;
     setProcesando(sol.id);
     try {
       await actualizarEstado(instance, account, sol.id, "Rechazado");
-
       // Enviar correo de notificación de rechazo
       try {
         const payload = {
@@ -373,21 +490,17 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           asistentes:     sol.Asistentes,
           motivo:         motivoRechazo.trim() || "Sin motivo especificado",
         };
-
         console.log("Enviando al webhook de correo de rechazo:", payload);
-
         const r = await fetch("https://webhook.soyneto.com/webhook/ba184e6d-f69b-4d72-b615-6259f768697c", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-
         const text = await r.text();
         console.log("Respuesta webhook rechazo:", r.status, text);
       } catch (errCorreo) {
         console.error("Error enviando correo de rechazo:", errCorreo);
       }
-
       setRechazoTarget(null);
       setMotivoRechazo("");
       setDetalle(null);
@@ -397,18 +510,15 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     }
     setProcesando(null);
   };
-
   const iniciarCancelacion = (sol) => {
     if (!puedeAprobar) return;
     setMotivoCancelacion("");
     setCancelacionTarget(sol);
   };
-
   const cancelarModalCancelacion = () => {
     setCancelacionTarget(null);
     setMotivoCancelacion("");
   };
-
   const confirmarCancelacion = async () => {
     const sol = cancelacionTarget;
     if (!sol || !puedeAprobar) return;
@@ -432,9 +542,7 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           }
         }
       }
-
       await actualizarCampos(instance, account, sol.id, { Estado: "Cancelado" });
-
       // Enviar correo de notificación de cancelación
       try {
         const payload = {
@@ -448,21 +556,17 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           asistentes:     sol.Asistentes,
           motivo:         motivoCancelacion.trim() || "Sin motivo especificado",
         };
-
         console.log("Enviando al webhook de correo de cancelación:", payload);
-
         const r = await fetch("https://webhook.soyneto.com/webhook/b4e6a26c-0edd-47a1-a86e-21de8dc68167", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-
         const text = await r.text();
         console.log("Respuesta webhook cancelación:", r.status, text);
       } catch (errCorreo) {
         console.error("Error enviando correo de cancelación:", errCorreo);
       }
-
       setCancelacionTarget(null);
       setMotivoCancelacion("");
       setDetalle(null);
@@ -472,7 +576,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
     }
     setProcesando(null);
   };
-
   return (
     <>
       <div style={{ background: "#fff", border: "0.5px solid #eee", borderRadius: 10, padding: "15px 17px" }}>
@@ -493,7 +596,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
             }}>↻ Actualizar</button>
           </div>
         </div>
-
         {loading ? (
           <div style={{ textAlign: "center", padding: 30, color: "#888", fontSize: 13 }}>Cargando solicitudes...</div>
         ) : filtradas.length === 0 ? (
@@ -587,7 +689,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           </div>
         )}
       </div>
-
       {detalle && (
         <DetalleModal
           sol={detalle}
@@ -599,7 +700,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           puedeAprobar={puedeAprobar}
         />
       )}
-
       {rechazoTarget && (
         <RechazoModal
           sol={rechazoTarget}
@@ -610,7 +710,6 @@ export default function SolicitudesPanel({ onPendientesChange }) {
           procesando={procesando === rechazoTarget.id}
         />
       )}
-
       {cancelacionTarget && (
         <CancelacionModal
           sol={cancelacionTarget}
