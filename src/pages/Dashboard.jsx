@@ -11,7 +11,11 @@ import UsersPanel from "../components/UsersPanel";
 import SolicitudesPanel from "../components/SolicitudesPanel";
 import { getSolicitudes } from "../services/solicitudesService";
 import { GROUP_ADMINS } from "../authConfig";
-
+// ── Selector de mes/año ──────────────────────────────────────
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 // ── Utilidades de exportación ───────────────────────────────
 function downloadFile(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -24,7 +28,6 @@ function downloadFile(content, filename, mime) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
 function csvEscape(value) {
   const str = String(value ?? "");
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -32,7 +35,6 @@ function csvEscape(value) {
   }
   return str;
 }
-
 function rowsToCSV(rows) {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
@@ -41,9 +43,8 @@ function rowsToCSV(rows) {
     ...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(",")),
   ];
   // BOM para que Excel abra bien los acentos en UTF-8
-  return "\uFEFF" + lines.join("\n");
+  return "﻿" + lines.join("\n");
 }
-
 export default function Dashboard() {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
@@ -52,10 +53,36 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [pendientesCount, setPendientesCount] = useState(0);
   const { rooms, events, loading, error, refresh } = useRooms(selectedDate);
-
   const isAdmin = account?.idTokenClaims?.groups?.includes(GROUP_ADMINS);
   const handleLogout = () => instance.logoutRedirect();
-
+  // Rango de años disponible en el selector: desde el año pasado hasta 3 años
+  // adelante, tomando como referencia el año actual (no el mes que se esté viendo).
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
+  // Cambia solo el mes de selectedDate, conservando el día (ajustado si el mes
+  // destino tiene menos días) y la hora, para poder saltar directo a la
+  // programación de meses futuros o pasados.
+  const handleMonthSelect = (e) => {
+    const month = Number(e.target.value);
+    setSelectedDate(prev => {
+      const lastDay = new Date(prev.getFullYear(), month + 1, 0).getDate();
+      const day = Math.min(prev.getDate(), lastDay);
+      const next = new Date(prev);
+      next.setFullYear(prev.getFullYear(), month, day);
+      return next;
+    });
+  };
+  // Cambia solo el año de selectedDate, con el mismo criterio que el mes.
+  const handleYearSelect = (e) => {
+    const year = Number(e.target.value);
+    setSelectedDate(prev => {
+      const lastDay = new Date(year, prev.getMonth() + 1, 0).getDate();
+      const day = Math.min(prev.getDate(), lastDay);
+      const next = new Date(prev);
+      next.setFullYear(year, prev.getMonth(), day);
+      return next;
+    });
+  };
   // Cargar conteo de solicitudes pendientes
   const cargarPendientes = async () => {
     try {
@@ -66,13 +93,11 @@ export default function Dashboard() {
       console.error(e);
     }
   };
-
   useEffect(() => {
     cargarPendientes();
     const interval = setInterval(cargarPendientes, 60000); // Actualizar cada minuto
     return () => clearInterval(interval);
   }, []);
-
   const VIEWS = {
     dashboard:    "Dashboard de salas",
     calendario:   "Calendario semanal",
@@ -83,21 +108,17 @@ export default function Dashboard() {
     usuarios:     "Usuarios con acceso",
     configuracion:"Configuración",
   };
-
   const initials = (name) => name ? name.split(" ").map(n => n[0]).join("").substring(0,2).toUpperCase() : "UN";
-
   const getOcupacion = (roomEmail) => {
     const evs = events[roomEmail] || [];
     return Math.min(Math.round((evs.length / 8) * 100), 100);
   };
-
   const getRoomStatus = (roomEmail) => {
     const evs = events[roomEmail] || [];
     const now = new Date();
     const busy = evs.some(ev => new Date(ev.start.dateTime) <= now && now <= new Date(ev.end.dateTime));
     return busy ? "En uso" : "Libre";
   };
-
   const getNextEvents = () => {
     const now = new Date();
     const all = [];
@@ -111,7 +132,6 @@ export default function Dashboard() {
     });
     return all.sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime)).slice(0, 3);
   };
-
   // ── Historial completo de reservas: arma las filas a partir de rooms/events ──
   const getHistorialRows = () => {
     const now = new Date();
@@ -137,7 +157,6 @@ export default function Dashboard() {
     });
     return all.sort((a, b) => (a.Fecha + a["Hora inicio"]).localeCompare(b.Fecha + b["Hora inicio"]));
   };
-
   // Excel abre archivos .csv sin problema, así que usamos el mismo generador
   // para ambos botones y evitamos depender de una librería externa (xlsx).
   const handleExportHistorial = () => {
@@ -149,7 +168,6 @@ export default function Dashboard() {
     const csv = rowsToCSV(rows);
     downloadFile(csv, `historial-reservas-${format(new Date(), "yyyy-MM-dd")}.csv`, "text/csv;charset=utf-8;");
   };
-
   return (
     <div style={s.app}>
       {/* SIDEBAR */}
@@ -183,7 +201,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
       {/* MAIN */}
       <div style={s.main}>
         <div style={s.topbar}>
@@ -194,13 +211,31 @@ export default function Dashboard() {
           <button style={s.navBtn} onClick={() => setSelectedDate(d => subDays(d,1))}>‹</button>
           <span style={s.datePill}>{format(selectedDate, "EEE d MMM", { locale: es })}</span>
           <button style={s.navBtn} onClick={() => setSelectedDate(d => addDays(d,1))}>›</button>
+          <select
+            style={s.monthSelect}
+            value={selectedDate.getMonth()}
+            onChange={handleMonthSelect}
+            title="Ir a un mes específico"
+          >
+            {MESES.map((m, i) => (
+              <option key={m} value={i}>{m}</option>
+            ))}
+          </select>
+          <select
+            style={s.monthSelect}
+            value={selectedDate.getFullYear()}
+            onChange={handleYearSelect}
+            title="Ir a un año específico"
+          >
+            {YEARS.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
           <button style={s.todayBtn} onClick={() => setSelectedDate(new Date())}>Hoy</button>
           <button style={s.newBtn} onClick={() => setShowModal(true)}>+ Nueva reserva</button>
           <button style={s.logoutBtn} onClick={handleLogout}>Salir</button>
         </div>
-
         <div style={s.content}>
-
           {/* ── DASHBOARD ── */}
           {activeView === "dashboard" && (
             <div>
@@ -210,19 +245,15 @@ export default function Dashboard() {
                 <KPI n={rooms.filter(r => getRoomStatus(r.emailAddress) === "En uso").length} label="En uso ahora" color="#E24B4A" bg="#FCEBEB" delta={rooms.find(r => getRoomStatus(r.emailAddress) === "En uso")?.displayName || "—"} dc="#888"/>
                 <KPI n={Object.values(events).reduce((s,evs) => s + evs.length, 0)} label="Reservas hoy" color="#534AB7" bg="#EEEDFE" delta="Total del día" dc="#534AB7"/>
               </div>
-
               {loading && <p style={s.msg}>Cargando salas...</p>}
               {error && <p style={{...s.msg, color:"#c0392b"}}>Error: {error}</p>}
-
               {!loading && !error && (
                 <div style={s.bodyGrid}>
                   <div>
                     <RoomCalendar rooms={rooms} events={events} onRefresh={refresh} selectedDate={selectedDate}/>
                   </div>
-
                   {/* Panel derecho */}
                   <div style={s.rightCol}>
-
                     {/* Estado de salas */}
                     <div style={s.mini}>
                       <div style={s.miniTitle}>🏢 Estado de salas</div>
@@ -239,10 +270,8 @@ export default function Dashboard() {
                         <span style={{...s.badge, ...s.bPurple}}>Disponible</span>
                       </div>
                     </div>
-
                     {/* Licencias Teams Rooms Pro */}
                     <LicensesPanel />
-
                     {/* Ocupación del mes */}
                     <div style={s.mini}>
                       <div style={s.miniTitle}>📊 Ocupación del mes</div>
@@ -262,7 +291,6 @@ export default function Dashboard() {
                         );
                       })}
                     </div>
-
                     {/* Próximas reservas */}
                     <div style={s.mini}>
                       <div style={s.miniTitle}>🕐 Próximas reservas</div>
@@ -275,21 +303,17 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-
                   </div>
                 </div>
               )}
             </div>
           )}
-
           {/* ── SOLICITUDES ── */}
           {activeView === "solicitudes" && (
             <SolicitudesPanel onPendientesChange={setPendientesCount} />
           )}
-
           {/* ── ESTADÍSTICAS ── */}
           {activeView === "estadisticas" && <StatsPanel rooms={rooms}/>}
-
           {/* ── SALAS ── */}
           {activeView === "salas" && (
             <div style={s.card}>
@@ -312,7 +336,6 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
           {/* ── EXPORTAR ── */}
           {activeView === "exportar" && (
             <div style={s.card}>
@@ -349,7 +372,6 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-
           {/* ── CALENDARIO ── */}
           {activeView === "calendario" && (
             <div style={s.card}>
@@ -357,14 +379,12 @@ export default function Dashboard() {
               {!loading && !error && <RoomCalendar rooms={rooms} events={events} onRefresh={refresh} selectedDate={selectedDate}/>}
             </div>
           )}
-
           {/* ── USUARIOS ── */}
           {activeView === "usuarios" && isAdmin && (
             <div style={s.card}>
               <UsersPanel />
             </div>
           )}
-
           {/* ── CONFIGURACIÓN ── */}
           {activeView === "configuracion" && isAdmin && (
             <div style={s.card}>
@@ -394,7 +414,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
       {/* MODAL */}
       {showModal && rooms.length > 0 && (
         <BookingModal rooms={rooms} selectedDate={selectedDate} onClose={() => setShowModal(false)} onSuccess={refresh}/>
@@ -402,7 +421,6 @@ export default function Dashboard() {
     </div>
   );
 }
-
 function SbItem({ label, id, active, onClick, badge }) {
   return (
     <div onClick={() => onClick(id)} style={{
@@ -423,7 +441,6 @@ function SbItem({ label, id, active, onClick, badge }) {
     </div>
   );
 }
-
 function KPI({ n, label, color, bg, delta, dc }) {
   return (
     <div style={{background:"#fff",border:"0.5px solid #eee",borderRadius:10,padding:"10px 13px"}}>
@@ -434,7 +451,6 @@ function KPI({ n, label, color, bg, delta, dc }) {
     </div>
   );
 }
-
 const s = {
   app:{display:"flex",fontFamily:"'Segoe UI',system-ui,sans-serif",minHeight:"100vh",background:"#f0f3f8",fontSize:15},
   sb:{width:220,background:"#042C53",display:"flex",flexDirection:"column",minHeight:"100vh",flexShrink:0},
@@ -456,6 +472,7 @@ const s = {
   tbSub:{fontSize:13,color:"#888"},
   navBtn:{background:"none",border:"0.5px solid #ddd",borderRadius:6,width:28,height:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#666",flexShrink:0},
   datePill:{fontSize:13,fontWeight:500,color:"#222",padding:"4px 12px",background:"#f5f5f5",borderRadius:20,border:"0.5px solid #eee",whiteSpace:"nowrap"},
+  monthSelect:{fontSize:13,fontWeight:500,color:"#222",padding:"5px 8px",background:"#f5f5f5",borderRadius:8,border:"0.5px solid #ddd",cursor:"pointer",flexShrink:0},
   todayBtn:{fontSize:13,padding:"5px 10px",borderRadius:6,border:"0.5px solid #B5D4F4",background:"#E6F1FB",color:"#0C447C",cursor:"pointer"},
   newBtn:{display:"flex",alignItems:"center",gap:4,padding:"7px 15px",background:"#042C53",color:"#E6F1FB",border:"none",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",flexShrink:0},
   logoutBtn:{padding:"6px 12px",border:"0.5px solid #ddd",borderRadius:6,fontSize:13,background:"none",color:"#888",cursor:"pointer"},
