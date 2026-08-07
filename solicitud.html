@@ -305,19 +305,28 @@ function horasInicioDia(fStr){
 function horasFinDia(fStr){
   return getDiaSemana(fStr)===5 ? HORAS_FIN_VI : HORAS_FIN_LV;
 }
-// ── FETCH DISPONIBILIDAD VÍA PIPEDREAM (sin CORS) ────────────────────────
-async function fetchOcupados(fStr) {
+// ── FETCH DISPONIBILIDAD (con reintentos ante saturación del webhook) ────
+// Si el webhook responde con error (p.ej. 503 por saturación), reintenta un
+// par de veces con una pequeña espera antes de rendirse y marcar el día
+// como "sin datos" (todo libre) para no bloquear el calendario.
+async function fetchOcupados(fStr, intentos) {
   if (ocupadosPorFecha[fStr]) return ocupadosPorFecha[fStr];
+  intentos = intentos || 0;
   try {
     var res = await fetch(PD_DISPONIBILIDAD, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fecha: fStr })
     });
+    if (!res.ok) throw new Error("HTTP " + res.status);
     var data = await res.json();
     ocupadosPorFecha[fStr] = data;
     return data;
   } catch(e) {
+    if (intentos < 2) {
+      await new Promise(function(r){ setTimeout(r, 400 * (intentos + 1)); });
+      return fetchOcupados(fStr, intentos + 1);
+    }
     var vacio = {tenacidad:[], practicidad:[], entusiasmo:[]};
     ocupadosPorFecha[fStr] = vacio;
     return vacio;
@@ -329,19 +338,27 @@ function diaDisponible(fStr) {
   var horas = horasInicioDia(fStr);
   return SALAS.some(function(s){ return ocp[s.id].length < horas.length; });
 }
+// ── PRECARGA DEL MES EN TANDAS ────────────────────────────────────────────
+// En vez de disparar ~20 peticiones simultáneas (una por día hábil del mes),
+// que saturaban el webhook y provocaban 503, las manda de a poco (lotes de
+// PRECARGA_LOTE) y va repintando el calendario según van llegando.
+var PRECARGA_LOTE = 4;
 async function precargarMes() {
   var diasMes = new Date(calAnio, calMes+1, 0).getDate();
   var hoyDate = new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
-  var promises = [];
+  var fechasPendientes = [];
   for (var d=1; d<=diasMes; d++) {
     var fecha = new Date(calAnio, calMes, d);
     var dia = fecha.getDay();
     if (dia===0||dia===6||fecha<hoyDate) continue;
     var fStr = calAnio+'-'+(calMes+1)+'-'+d;
-    if (!ocupadosPorFecha[fStr]) promises.push(fetchOcupados(fStr));
+    if (!ocupadosPorFecha[fStr]) fechasPendientes.push(fStr);
   }
-  await Promise.all(promises);
-  renderCal();
+  for (var i=0; i<fechasPendientes.length; i+=PRECARGA_LOTE) {
+    var lote = fechasPendientes.slice(i, i+PRECARGA_LOTE);
+    await Promise.all(lote.map(function(fs){ return fetchOcupados(fs); }));
+    renderCal();
+  }
 }
 function renderCal() {
   document.getElementById('cal-titulo').textContent = MESES[calMes]+' '+calAnio;
