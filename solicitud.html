@@ -342,7 +342,7 @@ function diaDisponible(fStr) {
 // En vez de disparar ~20 peticiones simultáneas (una por día hábil del mes),
 // que saturaban el webhook y provocaban 503, las manda de a poco (lotes de
 // PRECARGA_LOTE) y va repintando el calendario según van llegando.
-var PRECARGA_LOTE = 4;
+var PRECARGA_LOTE = 1;
 async function precargarMes() {
   var diasMes = new Date(calAnio, calMes+1, 0).getDate();
   var hoyDate = new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
