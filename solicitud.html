@@ -153,6 +153,10 @@
         </div>
         <div class="cal-sel-bar" id="cal-sel-bar"><i class="ti ti-calendar-check"></i> <span id="cal-txt"></span></div>
       </div>
+      <div id="webhook-aviso" style="display:none;margin-top:10px;" class="msg-error">
+        <i class="ti ti-wifi-off" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
+        <div><div style="font-size:13px;font-weight:500;color:#791F1F;margin-bottom:4px;">No pudimos verificar la disponibilidad en tiempo real</div><div style="font-size:12px;color:#A32D2D;line-height:1.5;">El sistema de disponibilidad no respondió. Las fechas marcadas como "disponibles" aún no están confirmadas — podrían ya estar ocupadas. Puedes continuar tu solicitud (se validará manualmente) o intentar de nuevo en unos minutos.</div></div>
+      </div>
       <div id="horario-section" style="display:none; margin-top:14px;">
         <div id="dia-lleno-msg" style="display:none;" class="msg-error">
           <i class="ti ti-calendar-x" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
@@ -327,10 +331,16 @@ async function fetchOcupados(fStr, intentos) {
       await new Promise(function(r){ setTimeout(r, 400 * (intentos + 1)); });
       return fetchOcupados(fStr, intentos + 1);
     }
+    console.warn('[disponibilidad] "'+fStr+'" no se pudo verificar tras 3 intentos ('+e.message+'). Se muestra como disponible SIN CONFIRMAR. Revisa que el workflow de n8n en '+PD_DISPONIBILIDAD+' esté activo y respondiendo.');
+    mostrarAvisoWebhook();
     var vacio = {tenacidad:[], practicidad:[], entusiasmo:[]};
     ocupadosPorFecha[fStr] = vacio;
     return vacio;
   }
+}
+function mostrarAvisoWebhook(){
+  var el = document.getElementById('webhook-aviso');
+  if (el) el.style.display = 'flex';
 }
 function diaDisponible(fStr) {
   var ocp = ocupadosPorFecha[fStr];
