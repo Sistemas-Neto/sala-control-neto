@@ -49,6 +49,7 @@
     .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
     .sala-placeholder { padding: 24px; background: #f8f8f8; border-radius: 8px; border: 0.5px dashed #ddd; text-align: center; }
     .msg-error { padding: 14px 16px; background: #FCEBEB; border-radius: 8px; border: 0.5px solid #F09595; display: flex; align-items: flex-start; gap: 10px; }
+    .msg-warning { padding: 14px 16px; background: #FCF3E3; border-radius: 8px; border: 0.5px solid #F0CE8F; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
     .msg-sugerencia { padding: 10px 14px; background: #EEEDFE; border-radius: 8px; border: 0.5px solid #AFA9EC; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
     .footer { background: #f8f8f8; border-top: 0.5px solid #eee; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
     .btn-enviar { padding: 12px 28px; background: #042C53; color: #E6F1FB; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
@@ -150,14 +151,15 @@
           <div class="cal-leg-item"><div class="dot" style="background:#1D9E75;"></div> Con disponibilidad</div>
           <div class="cal-leg-item"><div class="dot" style="background:#E24B4A;"></div> Sin disponibilidad</div>
           <div class="cal-leg-item"><div class="dot" style="background:#aaa;"></div> Verificando...</div>
+          <div class="cal-leg-item"><div class="dot" style="background:#E8A33D;"></div> No se pudo verificar</div>
         </div>
         <div class="cal-sel-bar" id="cal-sel-bar"><i class="ti ti-calendar-check"></i> <span id="cal-txt"></span></div>
       </div>
-      <div id="webhook-aviso" style="display:none;margin-top:10px;" class="msg-error">
-        <i class="ti ti-wifi-off" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
-        <div><div style="font-size:13px;font-weight:500;color:#791F1F;margin-bottom:4px;">No pudimos verificar la disponibilidad en tiempo real</div><div style="font-size:12px;color:#A32D2D;line-height:1.5;">El sistema de disponibilidad no respondió. Las fechas marcadas como "disponibles" aún no están confirmadas — podrían ya estar ocupadas. Puedes continuar tu solicitud (se validará manualmente) o intentar de nuevo en unos minutos.</div></div>
-      </div>
       <div id="horario-section" style="display:none; margin-top:14px;">
+        <div id="dia-fallo-msg" style="display:none;" class="msg-warning">
+          <i class="ti ti-alert-triangle" style="font-size:20px;color:#A66A16;flex-shrink:0;"></i>
+          <div><div style="font-size:13px;font-weight:500;color:#7A4E10;margin-bottom:4px;">No se pudo verificar la disponibilidad</div><div style="font-size:12px;color:#A66A16;line-height:1.5;">Hubo una falla temporal al consultar los horarios ocupados de este día. Puedes continuar, pero se recomienda confirmar manualmente que no haya un choque de horario antes de aprobar esta solicitud.</div></div>
+        </div>
         <div id="dia-lleno-msg" style="display:none;" class="msg-error">
           <i class="ti ti-calendar-x" style="font-size:20px;color:#A32D2D;flex-shrink:0;"></i>
           <div><div style="font-size:13px;font-weight:500;color:#791F1F;margin-bottom:4px;">Sin disponibilidad este día</div><div style="font-size:12px;color:#A32D2D;line-height:1.5;">Todas las salas están ocupadas. Por favor elige otra fecha.</div></div>
@@ -309,10 +311,15 @@ function horasInicioDia(fStr){
 function horasFinDia(fStr){
   return getDiaSemana(fStr)===5 ? HORAS_FIN_VI : HORAS_FIN_LV;
 }
-// ── FETCH DISPONIBILIDAD (con reintentos ante saturación del webhook) ────
-// Si el webhook responde con error (p.ej. 503 por saturación), reintenta un
-// par de veces con una pequeña espera antes de rendirse y marcar el día
-// como "sin datos" (todo libre) para no bloquear el calendario.
+// ── FETCH DISPONIBILIDAD (con reintentos ante la falla intermitente del
+// servidor de n8n, ~50% de las peticiones) ───────────────────────────────
+// El webhook falla de forma intermitente por un problema de infraestructura
+// ajeno a este formulario. Reintentamos varias veces con espera creciente
+// antes de rendirnos. Si aun así fallan todos los intentos, NO marcamos el
+// día como "disponible" a ciegas (eso podría ocultar un choque real de
+// horarios) -- lo marcamos como "no se pudo verificar" para que se revise
+// manualmente antes de aprobar.
+var verificacionFallida = {};
 async function fetchOcupados(fStr, intentos) {
   if (ocupadosPorFecha[fStr]) return ocupadosPorFecha[fStr];
   intentos = intentos || 0;
@@ -325,22 +332,18 @@ async function fetchOcupados(fStr, intentos) {
     if (!res.ok) throw new Error("HTTP " + res.status);
     var data = await res.json();
     ocupadosPorFecha[fStr] = data;
+    delete verificacionFallida[fStr];
     return data;
   } catch(e) {
-    if (intentos < 2) {
+    if (intentos < 5) {
       await new Promise(function(r){ setTimeout(r, 400 * (intentos + 1)); });
       return fetchOcupados(fStr, intentos + 1);
     }
-    console.warn('[disponibilidad] "'+fStr+'" no se pudo verificar tras 3 intentos ('+e.message+'). Se muestra como disponible SIN CONFIRMAR. Revisa que el workflow de n8n en '+PD_DISPONIBILIDAD+' esté activo y respondiendo.');
-    mostrarAvisoWebhook();
+    verificacionFallida[fStr] = true;
     var vacio = {tenacidad:[], practicidad:[], entusiasmo:[]};
     ocupadosPorFecha[fStr] = vacio;
     return vacio;
   }
-}
-function mostrarAvisoWebhook(){
-  var el = document.getElementById('webhook-aviso');
-  if (el) el.style.display = 'flex';
 }
 function diaDisponible(fStr) {
   var ocp = ocupadosPorFecha[fStr];
@@ -398,12 +401,15 @@ function renderCal() {
     } else {
       btn.style.cursor='pointer';btn.style.fontWeight='500';
       var hayDisp = diaDisponible(fStr);
+      var fallo = !!verificacionFallida[fStr];
       var num = document.createElement('span');num.textContent=d;num.style.display='block';btn.appendChild(num);
       var dot = document.createElement('div');
-      dot.style.cssText='width:5px;height:5px;border-radius:50%;margin:2px auto 0;background:'+(hayDisp===null?'#ccc':hayDisp?'#1D9E75':'#E24B4A')+';';
+      var dotColor = fallo ? '#E8A33D' : (hayDisp===null?'#ccc':hayDisp?'#1D9E75':'#E24B4A');
+      dot.style.cssText='width:5px;height:5px;border-radius:50%;margin:2px auto 0;background:'+dotColor+';';
       btn.appendChild(dot);
-      btn.style.color = hayDisp===false?'#A32D2D':'#222';
-      if(hayDisp===false)btn.style.opacity='0.7';
+      btn.style.color = fallo ? '#A66A16' : (hayDisp===false?'#A32D2D':'#222');
+      if(hayDisp===false||fallo)btn.style.opacity='0.7';
+      if(fallo)btn.title='No se pudo verificar la disponibilidad de este día por una falla intermitente del servidor. Puedes seleccionarlo, pero se recomienda confirmarlo manualmente antes de aprobar.';
       btn.addEventListener('mouseenter',function(e){if(e.currentTarget.style.background!=='#042C53')e.currentTarget.style.background='#f0f0f0';});
       btn.addEventListener('mouseleave',function(e){if(e.currentTarget.style.background!=='#042C53')e.currentTarget.style.background='';});
       (function(fs,dv){btn.addEventListener('click',function(){selectFecha(fs,dv);});})(fStr,d);
@@ -419,6 +425,7 @@ async function selectFecha(fStr, dv) {
   document.getElementById('cal-sel-bar').style.display='block';
   document.getElementById('horario-section').style.display='block';
   document.getElementById('dia-lleno-msg').style.display='none';
+  document.getElementById('dia-fallo-msg').style.display='none';
   document.getElementById('horario-content').style.display='none';
   document.getElementById('salas-placeholder').style.display='block';
   document.getElementById('sala-list').style.display='none';
@@ -426,6 +433,7 @@ async function selectFecha(fStr, dv) {
   renderCal();
   var ocp = await fetchOcupados(fStr);
   renderCal();
+  if(verificacionFallida[fStr]) document.getElementById('dia-fallo-msg').style.display='flex';
   var hayDisp = diaDisponible(fStr);
   if(!hayDisp){document.getElementById('dia-lleno-msg').style.display='flex';return;}
   var sel=document.getElementById('hinicio');
@@ -529,6 +537,17 @@ function enviar(){
   }
   abrirModalTerminos();
 }
+// Genera un identificador único por envío (usa crypto.randomUUID si el
+// navegador lo soporta; si no, arma uno equivalente a mano).
+function generarIdempotencyKey(){
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+    var r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
+}
 // ── ENVIAR RESERVA (n8n) — se ejecuta solo tras aceptar los términos ────
 async function enviarReservaFinal(){
   var responsable=document.getElementById('responsable').value.trim();
@@ -546,33 +565,54 @@ async function enviarReservaFinal(){
   var salaNames={tenacidad:'Sala Tenacidad',practicidad:'Sala Practicidad',entusiasmo:'Sala Entusiasmo',magna:'Sala Magna'};
   var parts=fechaSeleccionada.split('-');
   var fechaISO=parts[0]+'-'+parts[1].padStart(2,'0')+'-'+parts[2].padStart(2,'0');
-  try {
-    var res = await fetch(PD_RESERVAR, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        responsable:    responsable,
-        correo:         correo,
-        area:           area,
-        compania:       compania,
-        asunto:         asunto,
-        asistentes:     asistentes,
-        horaInicio:     fechaISO+'T'+hi+':00',
-        horaFin:        fechaISO+'T'+hf+':00',
-        sala:           salaNames[salaSeleccionada]||salaSeleccionada,
-        requerimientos: requerimientos,
-        terminosAceptados: true,
-        terminosFecha:  new Date().toISOString()
-      })
-    });
-    if(!res.ok) throw new Error('Error al guardar');
-    document.getElementById('form-body').style.display='none';
-    showGlobal('✓ Solicitud enviada correctamente. Recibirás confirmación en tu correo una vez que sea aprobada.','success');
-    document.getElementById('btn-enviar').style.display='none';
-    document.getElementById('btn-nueva').style.display='inline-block';
-  } catch(e){
-    showGlobal('Error al enviar la solicitud. Por favor intenta de nuevo.','err');
-    document.getElementById('btn-enviar').disabled=false;
+  var payload = {
+    responsable:    responsable,
+    correo:         correo,
+    area:           area,
+    compania:       compania,
+    asunto:         asunto,
+    asistentes:     asistentes,
+    horaInicio:     fechaISO+'T'+hi+':00',
+    horaFin:        fechaISO+'T'+hf+':00',
+    sala:           salaNames[salaSeleccionada]||salaSeleccionada,
+    requerimientos: requerimientos,
+    terminosAceptados: true,
+    terminosFecha:  new Date().toISOString(),
+    // Identificador único de este envío (el mismo se reutiliza en todos los
+    // reintentos de abajo). Permite que el workflow de n8n detecte si un
+    // intento anterior en realidad sí se guardó del lado del servidor pero
+    // la respuesta se perdió por la falla intermitente, evitando crear una
+    // solicitud duplicada.
+    idempotencyKey: generarIdempotencyKey()
+  };
+  // El servidor de n8n falla intermitentemente (~50% de las peticiones,
+  // problema de infraestructura fuera de este formulario). Reintentamos
+  // varias veces con espera creciente antes de mostrarle un error al
+  // usuario, para no perder solicitudes reales por esa falla intermitente.
+  var MAX_INTENTOS = 6;
+  for (var intento = 0; intento < MAX_INTENTOS; intento++) {
+    try {
+      if (intento > 0) {
+        showGlobal('Reintentando envío… (' + (intento+1) + '/' + MAX_INTENTOS + ')', 'loading');
+        await new Promise(function(r){ setTimeout(r, 600 * intento); });
+      }
+      var res = await fetch(PD_RESERVAR, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error('Error al guardar');
+      document.getElementById('form-body').style.display='none';
+      showGlobal('✓ Solicitud enviada correctamente. Recibirás confirmación en tu correo una vez que sea aprobada.','success');
+      document.getElementById('btn-enviar').style.display='none';
+      document.getElementById('btn-nueva').style.display='inline-block';
+      return;
+    } catch(e){
+      if (intento === MAX_INTENTOS - 1) {
+        showGlobal('Error al enviar la solicitud. Por favor intenta de nuevo.','err');
+        document.getElementById('btn-enviar').disabled=false;
+      }
+    }
   }
 }
 function showGlobal(txt,tipo){
@@ -643,10 +683,12 @@ function reiniciarFormulario(){
   salaSeleccionada=null;
   nAsistentes=0;
   ocupadosPorFecha={};
+  verificacionFallida={};
   document.getElementById('cal-sel-bar').style.display='none';
   document.getElementById('horario-section').style.display='none';
   document.getElementById('horario-content').style.display='none';
   document.getElementById('dia-lleno-msg').style.display='none';
+  document.getElementById('dia-fallo-msg').style.display='none';
   document.getElementById('salas-placeholder').style.display='block';
   document.getElementById('sala-list').style.display='none';
   document.getElementById('sala-list').innerHTML='';
