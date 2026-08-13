@@ -85,10 +85,20 @@ function escapeHtml(str) {
 // listos para impresión), para que quede un registro descargable de qué
 // reglamento aceptó cada solicitante y cuándo.
 function generarComprobanteHTML(sol, terminos, fecha, hi, hf) {
-  const seccionesHtml = REGLAMENTO_SECCIONES.map(s => `
-    <h3>${escapeHtml(s.titulo)}</h3>
-    ${s.parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("\n")}
-  `).join("\n");
+  const nombreResponsable = sol.ResponsableDeLaSesi_x00f3_n || "El responsable de la reserva";
+  const seccionesHtml = REGLAMENTO_SECCIONES.map(s => {
+    const m = s.titulo.match(/^(\d+)\.\s*(.*)$/);
+    const numero = m ? m[1] : "";
+    const tituloTexto = m ? m[2] : s.titulo;
+    return `
+    <div class="regla-item">
+      <div class="regla-num">${escapeHtml(numero)}</div>
+      <div class="regla-body">
+        <h3>${escapeHtml(tituloTexto)}</h3>
+        ${s.parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("\n")}
+      </div>
+    </div>`;
+  }).join("\n");
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -97,19 +107,29 @@ function generarComprobanteHTML(sol, terminos, fecha, hi, hf) {
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; color:#222; margin:0; padding:40px; background:#fff; }
-  .header { background:#042C53; color:#fff; padding:24px 32px; border-radius:10px; margin-bottom:24px; }
+  .header { background:#042C53; color:#fff; padding:24px 32px; border-radius:10px; margin-bottom:20px; }
   .header .label { font-size:11px; color:#85B7EB; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
-  .header h1 { font-size:20px; font-weight:500; margin:0 0 4px; }
-  .badge-ok { display:inline-block; margin-top:8px; background:#E1F5EE; color:#085041; font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px; }
+  .header h1 { font-size:20px; font-weight:500; margin:0; }
+  .aceptacion-banner { display:flex; align-items:flex-start; gap:12px; background:#E1F5EE; border:0.5px solid #A9DFC9; border-radius:10px; padding:16px 18px; margin-bottom:24px; }
+  .aceptacion-check { flex-shrink:0; width:28px; height:28px; border-radius:50%; background:#1D9E75; color:#fff; font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .aceptacion-titulo { font-size:13.5px; font-weight:600; color:#085041; margin-bottom:3px; }
+  .aceptacion-detalle { font-size:12.5px; color:#0B6B52; line-height:1.6; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
   .field { font-size:13px; }
   .field .lbl { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
   .field .val { color:#222; font-weight:500; }
   .divider { height:1px; background:#eee; margin:20px 0; }
   h2.reglamento-title { font-size:16px; color:#042C53; margin-bottom:10px; }
-  h3 { font-size:13.5px; color:#042C53; margin:16px 0 6px; }
+  .reglamento-card { background:#fbfbfb; border:0.5px solid #eee; border-radius:10px; padding:6px 18px; }
+  .regla-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #eee; }
+  .regla-item:last-child { border-bottom:none; }
+  .regla-num { flex-shrink:0; width:26px; height:26px; border-radius:50%; background:#E6F1FB; color:#185FA5; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .regla-body { flex:1; min-width:0; }
+  h3 { font-size:13.5px; color:#042C53; margin:0 0 6px; }
   p { font-size:13px; line-height:1.6; color:#444; margin:0 0 6px; }
+  p:last-child { margin-bottom:0; }
   .declaracion { margin-top:20px; padding:14px 16px; background:#f8f8f8; border-radius:8px; font-size:12.5px; color:#555; }
+  .declaracion strong { color:#222; }
   .footer-note { margin-top:24px; font-size:11px; color:#aaa; text-align:center; }
   @media print { body { padding:20px; } }
 </style>
@@ -118,7 +138,13 @@ function generarComprobanteHTML(sol, terminos, fecha, hi, hf) {
   <div class="header">
     <div class="label">Campus Universidad Neto</div>
     <h1>Comprobante de aceptación del Reglamento</h1>
-    <span class="badge-ok">✓ ${escapeHtml(terminos.texto)}</span>
+  </div>
+  <div class="aceptacion-banner">
+    <div class="aceptacion-check">✓</div>
+    <div>
+      <div class="aceptacion-titulo">Términos y condiciones de uso aceptados</div>
+      <div class="aceptacion-detalle"><strong>${escapeHtml(nombreResponsable)}</strong>, como responsable de esta reserva, declaró haber leído y aceptado el Reglamento Campus Universidad Neto al momento de enviar la solicitud (${escapeHtml(terminos.texto)}).</div>
+    </div>
   </div>
   <div class="grid">
     <div class="field"><div class="lbl">Responsable</div><div class="val">${escapeHtml(sol.ResponsableDeLaSesi_x00f3_n)}</div></div>
@@ -133,8 +159,10 @@ function generarComprobanteHTML(sol, terminos, fecha, hi, hf) {
   <div class="divider"></div>
   <h2 class="reglamento-title">Reglamento Campus Universidad Neto</h2>
   <p>${escapeHtml(REGLAMENTO_INTRO)}</p>
+  <div class="reglamento-card">
   ${seccionesHtml}
-  <div class="declaracion">${escapeHtml(REGLAMENTO_DECLARACION)}</div>
+  </div>
+  <div class="declaracion"><strong>${escapeHtml(nombreResponsable)}</strong>, ${escapeHtml(REGLAMENTO_DECLARACION.replace(/^Al seleccionar/, "al seleccionar"))}</div>
   <div class="footer-note">Generado desde el panel de Solicitudes de reserva · Universidad Neto</div>
 </body>
 </html>`;
